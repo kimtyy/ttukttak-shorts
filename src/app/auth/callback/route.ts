@@ -1,14 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
-
-function sanitizeNextUrl(next: string | null): string {
-  if (!next) return "/dashboard";
-  // Open Redirect Prevention: Must start with '/', cannot start with '//', cannot contain ':'
-  if (next.startsWith("/") && !next.startsWith("//") && !next.includes(":")) {
-    return next;
-  }
-  return "/dashboard";
-}
+import { sanitizeNextUrl } from "@/lib/navigation";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);

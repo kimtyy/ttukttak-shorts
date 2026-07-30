@@ -4,12 +4,13 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClientForBrowser } from "@/lib/supabase/client";
+import { sanitizeNextUrl } from "@/lib/navigation";
 import { LogIn } from "lucide-react";
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextUrl = searchParams.get("next") || "/dashboard";
+  const nextUrl = sanitizeNextUrl(searchParams.get("next"));
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

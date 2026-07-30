@@ -48,18 +48,25 @@ export async function POST(request: Request) {
     const job = Array.isArray(reserveRes) ? reserveRes[0] : reserveRes;
     const { job_id: jobId, already_exists: alreadyExists } = job;
 
-    // If job already existed and completed, return existing project if available
+    // If job already existed and completed, return the exact project it produced
     if (alreadyExists && job.current_status === "completed") {
-      const { data: existingProj } = await supabase
-        .from("projects")
-        .select("*, scenes(*)")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
+      const { data: existingJob } = await supabase
+        .from("generation_jobs")
+        .select("project_id")
+        .eq("id", jobId)
+        .maybeSingle();
 
-      if (existingProj) {
-        return NextResponse.json({ project: existingProj, jobId, alreadyExists: true, requestId });
+      if (existingJob?.project_id) {
+        const { data: existingProj } = await supabase
+          .from("projects")
+          .select("*, scenes(*)")
+          .eq("id", existingJob.project_id)
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (existingProj) {
+          return NextResponse.json({ project: existingProj, jobId, alreadyExists: true, requestId });
+        }
       }
     }
 
@@ -144,7 +151,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // 5. Create Scenes in DB
+    // 5. Link Job to Resulting Project (for idempotent-retry lookup)
+    const { error: linkErr } = await supabase.rpc("link_job_project", {
+      p_job_id: jobId,
+      p_project_id: project.id,
+    });
+    if (linkErr) {
+      console.error(`[${requestId}] [LINK_JOB_PROJECT] Code: ${linkErr.code}, Message: ${linkErr.message}`);
+    }
+
+    // 6. Create Scenes in DB
     const sceneInserts = generatedScript.scenes.map((s, idx) => ({
       project_id: project.id,
       scene_number: idx + 1,
@@ -180,7 +196,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 6. Commit Usage Reservation
+    // 7. Commit Usage Reservation
     const { error: commitErr } = await supabase.rpc("commit_usage", { p_job_id: jobId });
     if (commitErr) {
       console.error(`[${requestId}] [COMMIT_USAGE] Code: ${commitErr.code}, Message: ${commitErr.message}`);
