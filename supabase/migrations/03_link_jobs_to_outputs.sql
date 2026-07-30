@@ -11,7 +11,7 @@
 
 -- 1. Link topic_recommendations back to the job that created them
 alter table public.topic_recommendations
-  add column job_id uuid references public.generation_jobs(id) on delete set null;
+  add column if not exists job_id uuid references public.generation_jobs(id) on delete set null;
 
 -- 2. RPC to link a completed job to its resulting project (script generation)
 create or replace function public.link_job_project(
