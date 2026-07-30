@@ -30,7 +30,10 @@ export async function POST(request: Request) {
     });
 
     if (reserveError) {
-      return NextResponse.json({ error: reserveError.message }, { status: 400 });
+      const msg = reserveError.message.includes("USAGE_LIMIT_EXCEEDED")
+        ? "이번 달 AI 추천 사용량 한도를 모두 소진하였습니다."
+        : reserveError.message || "사용량 확인 중 오류가 발생했습니다.";
+      return NextResponse.json({ error: reserveError.message, message: msg }, { status: 400 });
     }
 
     const job = Array.isArray(reserveRes) ? reserveRes[0] : reserveRes;
