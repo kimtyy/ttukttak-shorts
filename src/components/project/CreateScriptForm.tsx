@@ -9,10 +9,16 @@ export function CreateScriptForm({ scriptRemaining }: { scriptRemaining: number 
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialPurpose = (searchParams.get("purpose") as VideoPurpose) || "free";
+  const initialTopic = searchParams.get("topic") || "";
+  const allowedDurations = [15, 30, 45, 60] as const;
+  const parsedDuration = Number(searchParams.get("duration"));
+  const initialDuration = (allowedDurations as readonly number[]).includes(parsedDuration)
+    ? (parsedDuration as 15 | 30 | 45 | 60)
+    : 30;
 
-  const [topic, setTopic] = useState("");
+  const [topic, setTopic] = useState(initialTopic);
   const [purpose, setPurpose] = useState<VideoPurpose>(initialPurpose);
-  const [duration, setDuration] = useState<15 | 30 | 45 | 60>(30);
+  const [duration, setDuration] = useState<15 | 30 | 45 | 60>(initialDuration);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   // App Dedicated Fields
