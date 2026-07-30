@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     }
 
     // 1. Fetch Profile
-    const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+    const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).maybeSingle();
 
     // 2. Reserve Recommendation Usage
     const { data: reserveRes, error: reserveError } = await supabase.rpc("reserve_usage", {
@@ -30,10 +30,21 @@ export async function POST(request: Request) {
     });
 
     if (reserveError) {
-      const msg = reserveError.message.includes("USAGE_LIMIT_EXCEEDED")
+      console.error("[reserve_usage RPC Error]", {
+        code: reserveError.code,
+        message: reserveError.message,
+        details: reserveError.details,
+        hint: reserveError.hint,
+        userId: user.id,
+      });
+
+      const userMsg = reserveError.message.includes("USAGE_LIMIT_EXCEEDED")
         ? "이번 달 AI 추천 사용량 한도를 모두 소진하였습니다."
-        : reserveError.message || "사용량 확인 중 오류가 발생했습니다.";
-      return NextResponse.json({ error: reserveError.message, message: msg }, { status: 400 });
+        : reserveError.message.includes("NO_ACTIVE_SUBSCRIPTION")
+        ? "활성화된 요금제가 없습니다. 무료 요금제를 발급하는 중입니다."
+        : "추천을 생성하지 못했습니다. 잠시 후 다시 시도해주세요.";
+
+      return NextResponse.json({ error: reserveError.code || "RESERVE_FAILED", message: userMsg }, { status: 400 });
     }
 
     const job = Array.isArray(reserveRes) ? reserveRes[0] : reserveRes;
