@@ -27,7 +27,36 @@ const SYSTEM_PROMPT_SCRIPT = `
 이미지 프롬프트는 영어로 작성한다.
 이미지 프롬프트에는 vertical 9:16 composition과 no text를 포함한다.
 모든 장면 duration의 합은 선택한 전체 영상 길이와 일치해야 한다.
-결과는 지정된 JSON Schema에 맞는 JSON으로만 출력한다.
+
+다른 설명, 코드블록 없이 아래 형식의 JSON 객체 하나만 출력한다:
+{
+  "title": string,
+  "hook": string,
+  "thumbnail_text": string,
+  "description": string,
+  "hashtags": string[],
+  "duration": 15 | 30 | 45 | 60,
+  "purpose": "free" | "business_promotion" | "product_menu" | "sale_event" | "app_service" | "information" | "story" | "review" | "education" | "local_travel" | "notice" | "recruitment" | "custom",
+  "total_narration": string,
+  "content_strategy": string,
+  "target_audience": string,
+  "call_to_action": string,
+  "scenes": [
+    {
+      "scene_number": number,
+      "role": "hook" | "problem" | "desire" | "introduction" | "feature" | "proof" | "development" | "key_point" | "turning_point" | "offer" | "conclusion" | "cta",
+      "duration": number,
+      "narration": string,
+      "caption": string,
+      "visual_description": string,
+      "image_prompt": string,
+      "required_asset": string,
+      "asset_source": "user_upload" | "ai_image" | "ai_video" | "screen_recording" | "stock" | "text_motion",
+      "motion": "slow_zoom_in" | "slow_zoom_out" | "pan_left" | "pan_right" | "pan_up" | "pan_down" | "static" | "screen_scroll" | "text_pop",
+      "transition": "fade" | "cross_dissolve" | "slide_left" | "slide_right" | "cut"
+    }
+  ]
+}
 `;
 
 const SYSTEM_PROMPT_RECOMMENDATION = `
@@ -35,7 +64,25 @@ const SYSTEM_PROMPT_RECOMMENDATION = `
 사용자 프로필과 요청 내용을 바탕으로 실제로 제작할 수 있는 주제 10개를 추천한다.
 추천은 다음 범주를 고르게 포함할 수 있다: 업종 맞춤, 상품홍보, 정보형, 이야기형, 계절형, 에버그린, 앱소개 등.
 실시간 데이터가 제공되지 않은 경우 현재 유행 중이거나 급상승 중이라고 단정하지 않는다.
-JSON Schema 이외의 문장을 출력하지 않는다.
+
+다른 설명, 코드블록 없이 아래 형식의 JSON 객체 하나만 출력한다. "recommendations" 배열에는 정확히 10개의 항목을 담는다:
+{
+  "recommendations": [
+    {
+      "title": string,
+      "summary": string,
+      "reason": string,
+      "audience": string,
+      "hook": string,
+      "suggested_duration": 15 | 30 | 45 | 60,
+      "difficulty": "easy" | "normal" | "advanced",
+      "required_assets": string[],
+      "purpose": "free" | "business_promotion" | "product_menu" | "sale_event" | "app_service" | "information" | "story" | "review" | "education" | "local_travel" | "notice" | "recruitment" | "custom",
+      "source": "ai_general" | "user_profile" | "seasonal" | "evergreen",
+      "confidence": number
+    }
+  ]
+}
 `;
 
 /**
