@@ -82,14 +82,19 @@ create type public.scene_transition as enum (
   'cut'
 );
 
+-- MVP 1단계 앱 레이어 허용 source: ai_general, user_profile, seasonal, evergreen (4개)
+-- uploaded_assets : 에셋 기반 추천 파이프라인 도입 이후 허용 예정
+-- verified_trend  : 실제 외부 트렌드 검증 API 도입 이후 허용 예정
+-- 위 두 값은 DB enum에 존재하지만 앱(OpenAIRecommendationProvider)에서 ai_general로 정규화 후 저장한다.
 create type public.recommendation_source as enum (
   'ai_general',
   'user_profile',
   'seasonal',
   'evergreen',
-  'uploaded_assets',
-  'verified_trend'
+  'uploaded_assets',   -- reserved: not stored by app in MVP 1
+  'verified_trend'     -- reserved: not stored by app in MVP 1
 );
+
 
 create type public.project_status as enum (
   'draft',

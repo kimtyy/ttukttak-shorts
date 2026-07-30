@@ -90,23 +90,52 @@ export const GeneratedShortsProjectSchema = z.object({
   scenes: z.array(ShortsSceneSchema),
 });
 
+/**
+ * MVP 1단계 허용 recommendation source (4개)
+ *
+ * DB enum(public.recommendation_source)에는 uploaded_assets, verified_trend도 존재하지만
+ * 앱 레이어에서 저장을 차단한다.
+ *   - uploaded_assets : 에셋 기반 추천 파이프라인 도입 이후 허용
+ *   - verified_trend  : 실제 외부 트렌드 검증 API 도입 이후 허용
+ *
+ * AI가 위 두 값 또는 알 수 없는 값을 반환하면
+ * OpenAIRecommendationProvider의 정규화(normalizeRawRecommendation) 단계에서
+ * ai_general로 변환한 뒤 이 스키마에 전달된다.
+ */
+export const ALLOWED_RECOMMENDATION_SOURCES = [
+  "ai_general",
+  "user_profile",
+  "seasonal",
+  "evergreen",
+] as const;
+
+export type AllowedRecommendationSource = (typeof ALLOWED_RECOMMENDATION_SOURCES)[number];
+
 export const TopicRecommendationSchema = z.object({
   id: z.string().optional(),
-  title: z.string(),
-  summary: z.string(),
-  reason: z.string(),
-  audience: z.string(),
-  hook: z.string(),
-  // coerce handles cases where OpenAI returns a number not in the exact union
+
+  // ── 핵심 필드: 누락·빈 문자열 시 검증 실패 (조용히 통과 금지) ──────────────
+  title: z.string().min(1),
+  summary: z.string().min(1),
+  reason: z.string().min(1),
+  audience: z.string().min(1),
+  hook: z.string().min(1),
+
+  // ── 보조 필드: 안전한 폴백 허용 ────────────────────────────────────────────
+  // 15·30·45·60 외의 값(예: 27, "30" 등)은 30으로 보정
   suggested_duration: z.coerce.number().transform((v) => {
     const valid = [15, 30, 45, 60] as const;
-    return valid.includes(v as 15 | 30 | 45 | 60) ? (v as 15 | 30 | 45 | 60) : 30;
+    return (valid as readonly number[]).includes(v) ? (v as 15 | 30 | 45 | 60) : 30;
   }),
   difficulty: z.enum(["easy", "normal", "advanced"]).catch("normal"),
   required_assets: z.array(z.string()),
   purpose: VideoPurposeSchema,
-  // All 6 DB enum values supported (verified_trend & uploaded_assets included)
-  source: z.enum(["ai_general", "user_profile", "seasonal", "evergreen", "uploaded_assets", "verified_trend"]).catch("ai_general"),
+
+  // provider 정규화 후 반드시 4개 중 하나여야 한다 (.catch 없음 — 정규화 미이행 시 명시적 오류)
+  source: z.enum(["ai_general", "user_profile", "seasonal", "evergreen"]),
+
   confidence: z.number().min(0).max(1),
-  trend_verified: z.boolean().optional().transform(() => false), // STRICT FORCED FALSE
+
+  // AI 응답 무관, 서버에서 항상 false 강제
+  trend_verified: z.boolean().optional().transform(() => false),
 });

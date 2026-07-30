@@ -5,12 +5,15 @@ import {
   TopicRecommendation,
 } from "@/types";
 import { ScriptProvider, RecommendationProvider } from "./provider";
-import { GeneratedShortsProjectSchema, TopicRecommendationSchema } from "../schemas";
+import {
+  GeneratedShortsProjectSchema,
+  TopicRecommendationSchema,
+  ALLOWED_RECOMMENDATION_SOURCES,
+} from "../schemas";
 import OpenAI from "openai";
 import { ZodError } from "zod";
 
 const DEFAULT_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
-
 
 const SYSTEM_PROMPT_SCRIPT = `
 당신은 유튜브 쇼츠, 인스타그램 릴스, 틱톡용 세로형 콘텐츠를 설계하는 범용 AI 콘텐츠 기획자다.
@@ -34,6 +37,31 @@ const SYSTEM_PROMPT_RECOMMENDATION = `
 실시간 데이터가 제공되지 않은 경우 현재 유행 중이거나 급상승 중이라고 단정하지 않는다.
 JSON Schema 이외의 문장을 출력하지 않는다.
 `;
+
+/**
+ * AI 원시 응답을 Zod 검증 전에 정규화한다.
+ *
+ * 정책:
+ * - source: ALLOWED_RECOMMENDATION_SOURCES(4개)에 포함되지 않으면 ai_general 로 대체
+ *   (uploaded_assets, verified_trend, 알 수 없는 값 모두 포함)
+ * - trend_verified: AI 응답과 무관하게 항상 false 로 강제
+ * - suggested_duration: 그대로 전달 (Zod coerce가 처리)
+ *
+ * 이 함수는 원본 객체를 변경하지 않고 새 객체를 반환한다.
+ */
+function normalizeRawRecommendation(raw: Record<string, unknown>): Record<string, unknown> {
+  const rawSource = raw.source as string | undefined;
+  const normalizedSource =
+    rawSource && (ALLOWED_RECOMMENDATION_SOURCES as readonly string[]).includes(rawSource)
+      ? rawSource
+      : "ai_general";
+
+  return {
+    ...raw,
+    source: normalizedSource,
+    trend_verified: false, // 서버 강제, AI 응답 무시
+  };
+}
 
 export class OpenAIScriptProvider implements ScriptProvider {
   private client: OpenAI;
@@ -212,7 +240,6 @@ export class OpenAIRecommendationProvider implements RecommendationProvider {
       const error = apiErr as { status?: number; type?: string; code?: string; message?: string };
       const safeCode = error.code || error.type || "unknown";
 
-      // Classify known OpenAI error types for safe logging
       let errorCode = "OPENAI_REQUEST_FAILED";
       if (safeCode === "invalid_api_key") errorCode = "OPENAI_INVALID_API_KEY";
       else if (safeCode === "insufficient_quota") errorCode = "OPENAI_QUOTA_EXCEEDED";
@@ -242,15 +269,17 @@ export class OpenAIRecommendationProvider implements RecommendationProvider {
 
     const validated: TopicRecommendation[] = [];
     for (let i = 0; i < recs.length; i++) {
+      // ── 정규화: Zod parse 이전에 source·trend_verified 강제 보정 ──────────
+      const normalized = normalizeRawRecommendation(recs[i] as Record<string, unknown>);
       try {
-        const rec = TopicRecommendationSchema.parse(recs[i]);
-        validated.push({ ...rec, trend_verified: false } as TopicRecommendation);
+        const rec = TopicRecommendationSchema.parse(normalized);
+        validated.push(rec as TopicRecommendation);
       } catch (zodErr: unknown) {
         if (zodErr instanceof ZodError) {
           const fieldPaths = zodErr.issues.map((issue) => issue.path.join(".")).join(", ");
           console.error(`[${reqId}] [AI_RESPONSE_VALIDATION] rec[${i}] Zod error on fields: [${fieldPaths}]`);
         }
-        // Skip invalid items rather than failing entire batch
+        // 핵심 필드 누락 항목은 건너뜀 (전체 배치는 계속 진행)
       }
     }
 
