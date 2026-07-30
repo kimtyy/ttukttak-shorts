@@ -9,6 +9,9 @@ import { GeneratedShortsProjectSchema, TopicRecommendationSchema } from "../sche
 import OpenAI from "openai";
 import { ZodError } from "zod";
 
+const DEFAULT_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+
+
 const SYSTEM_PROMPT_SCRIPT = `
 당신은 유튜브 쇼츠, 인스타그램 릴스, 틱톡용 세로형 콘텐츠를 설계하는 범용 AI 콘텐츠 기획자다.
 특정 분야에 한정되지 않는다.
@@ -53,7 +56,7 @@ export class OpenAIScriptProvider implements ScriptProvider {
     let response;
     try {
       response = await this.client.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: DEFAULT_MODEL,
         messages: [
           { role: "system", content: SYSTEM_PROMPT_SCRIPT },
           { role: "user", content: JSON.stringify(input) },
@@ -184,34 +187,79 @@ export class OpenAIRecommendationProvider implements RecommendationProvider {
     });
   }
 
-  async generateRecommendations(input: RecommendationInput): Promise<TopicRecommendation[]> {
+  async generateRecommendations(input: RecommendationInput, requestId?: string): Promise<TopicRecommendation[]> {
+    const reqId = requestId || "REQ";
+
     if (!process.env.OPENAI_API_KEY) {
       if (process.env.NODE_ENV === "production") {
-        throw new Error("OPENAI_API_KEY가 설정되지 않아 주제를 추천할 수 없습니다.");
+        console.error(`[${reqId}] [OPENAI_REQUEST] Missing OPENAI_API_KEY in production`);
+        throw { stage: "OPENAI_REQUEST", errorCode: "OPENAI_KEY_MISSING", message: "OPENAI_API_KEY가 설정되지 않아 주제를 추천할 수 없습니다." };
       }
       return this.getMockRecommendations();
     }
 
-    const response = await this.client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT_RECOMMENDATION },
-        { role: "user", content: JSON.stringify(input.profile) },
-      ],
-      response_format: { type: "json_object" },
-    });
+    let response;
+    try {
+      response = await this.client.chat.completions.create({
+        model: DEFAULT_MODEL,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT_RECOMMENDATION },
+          { role: "user", content: JSON.stringify(input.profile) },
+        ],
+        response_format: { type: "json_object" },
+      });
+    } catch (apiErr: unknown) {
+      const error = apiErr as { status?: number; type?: string; code?: string; message?: string };
+      const safeCode = error.code || error.type || "unknown";
 
-    const content = response.choices[0].message.content || "{}";
-    const parsed = JSON.parse(content);
+      // Classify known OpenAI error types for safe logging
+      let errorCode = "OPENAI_REQUEST_FAILED";
+      if (safeCode === "invalid_api_key") errorCode = "OPENAI_INVALID_API_KEY";
+      else if (safeCode === "insufficient_quota") errorCode = "OPENAI_QUOTA_EXCEEDED";
+      else if (safeCode === "rate_limit_exceeded") errorCode = "OPENAI_RATE_LIMIT";
+      else if (safeCode === "model_not_found") errorCode = "OPENAI_MODEL_NOT_FOUND";
+      else if (error.type === "invalid_request_error") errorCode = "OPENAI_INVALID_REQUEST";
+
+      console.error(`[${reqId}] [OPENAI_REQUEST] endpoint=recommendations HTTP ${error.status || 500} type=${safeCode} errorCode=${errorCode}`);
+      throw { stage: "OPENAI_REQUEST", errorCode, openAiStatus: error.status, openAiErrorType: safeCode, message: error.message || "OpenAI API 호출 실패" };
+    }
+
+    const content = response.choices[0]?.message?.content || "{}";
+    let parsed;
+    try {
+      parsed = JSON.parse(content);
+    } catch (parseErr: unknown) {
+      console.error(`[${reqId}] [OPENAI_RESPONSE_PARSE] recommendations: Invalid JSON from OpenAI: ${(parseErr as Error).message}`);
+      throw { stage: "OPENAI_RESPONSE_PARSE", errorCode: "OPENAI_INVALID_JSON", message: "AI 응답 JSON 파싱 실패" };
+    }
+
     const recs = Array.isArray(parsed.recommendations) ? parsed.recommendations : [];
 
-    return recs.map((r: unknown) => {
-      const validated = TopicRecommendationSchema.parse(r);
-      return {
-        ...validated,
-        trend_verified: false,
-      } as TopicRecommendation;
-    });
+    if (recs.length === 0) {
+      console.error(`[${reqId}] [AI_RESPONSE_VALIDATION] recommendations array is empty or missing`);
+      throw { stage: "AI_RESPONSE_VALIDATION", errorCode: "EMPTY_RECOMMENDATIONS", message: "AI가 추천 목록을 반환하지 않았습니다." };
+    }
+
+    const validated: TopicRecommendation[] = [];
+    for (let i = 0; i < recs.length; i++) {
+      try {
+        const rec = TopicRecommendationSchema.parse(recs[i]);
+        validated.push({ ...rec, trend_verified: false } as TopicRecommendation);
+      } catch (zodErr: unknown) {
+        if (zodErr instanceof ZodError) {
+          const fieldPaths = zodErr.issues.map((issue) => issue.path.join(".")).join(", ");
+          console.error(`[${reqId}] [AI_RESPONSE_VALIDATION] rec[${i}] Zod error on fields: [${fieldPaths}]`);
+        }
+        // Skip invalid items rather than failing entire batch
+      }
+    }
+
+    if (validated.length === 0) {
+      console.error(`[${reqId}] [AI_RESPONSE_VALIDATION] All ${recs.length} recommendations failed Zod validation`);
+      throw { stage: "AI_RESPONSE_VALIDATION", errorCode: "ALL_RECS_VALIDATION_FAILED", message: "AI 추천 항목 검증에 모두 실패했습니다." };
+    }
+
+    return validated;
   }
 
   private getMockRecommendations(): TopicRecommendation[] {

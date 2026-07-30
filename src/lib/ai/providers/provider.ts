@@ -6,9 +6,9 @@ import {
 } from "@/types";
 
 export interface ScriptProvider {
-  generateScript(input: GenerateScriptInput): Promise<GeneratedShortsProject>;
+  generateScript(input: GenerateScriptInput, requestId?: string): Promise<GeneratedShortsProject>;
 }
 
 export interface RecommendationProvider {
-  generateRecommendations(input: RecommendationInput): Promise<TopicRecommendation[]>;
+  generateRecommendations(input: RecommendationInput, requestId?: string): Promise<TopicRecommendation[]>;
 }

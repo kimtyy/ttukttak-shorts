@@ -97,11 +97,16 @@ export const TopicRecommendationSchema = z.object({
   reason: z.string(),
   audience: z.string(),
   hook: z.string(),
-  suggested_duration: z.union([z.literal(15), z.literal(30), z.literal(45), z.literal(60)]),
-  difficulty: z.enum(["easy", "normal", "advanced"]),
+  // coerce handles cases where OpenAI returns a number not in the exact union
+  suggested_duration: z.coerce.number().transform((v) => {
+    const valid = [15, 30, 45, 60] as const;
+    return valid.includes(v as 15 | 30 | 45 | 60) ? (v as 15 | 30 | 45 | 60) : 30;
+  }),
+  difficulty: z.enum(["easy", "normal", "advanced"]).catch("normal"),
   required_assets: z.array(z.string()),
   purpose: VideoPurposeSchema,
-  source: z.enum(["ai_general", "user_profile", "seasonal", "evergreen"]),
+  // All 6 DB enum values supported (verified_trend & uploaded_assets included)
+  source: z.enum(["ai_general", "user_profile", "seasonal", "evergreen", "uploaded_assets", "verified_trend"]).catch("ai_general"),
   confidence: z.number().min(0).max(1),
-  trend_verified: z.boolean().transform(() => false), // STRICT FORCED FALSE
+  trend_verified: z.boolean().optional().transform(() => false), // STRICT FORCED FALSE
 });

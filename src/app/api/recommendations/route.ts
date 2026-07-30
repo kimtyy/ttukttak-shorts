@@ -3,12 +3,14 @@ import { createClientForServer } from "@/lib/supabase/server";
 import { OpenAIRecommendationProvider } from "@/lib/ai/providers/openai";
 
 export async function POST(request: Request) {
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
   try {
     const supabase = await createClientForServer();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      return NextResponse.json({ error: "AUTH_REQUIRED", message: "로그인이 필요합니다." }, { status: 401 });
+      return NextResponse.json({ error: "AUTH_REQUIRED", message: "로그인이 필요합니다.", requestId }, { status: 401 });
     }
 
     const body = await request.json();
@@ -65,11 +67,19 @@ export async function POST(request: Request) {
     const provider = new OpenAIRecommendationProvider();
     let recs;
     try {
-      recs = await provider.generateRecommendations({ profile: profile || { id: user.id, display_name: "사용자", onboarding_completed: false, created_at: "", updated_at: "" } });
+      recs = await provider.generateRecommendations({ profile: profile || { id: user.id, display_name: "사용자", onboarding_completed: false, created_at: "", updated_at: "" } }, requestId);
     } catch (aiErr: unknown) {
-      const error = aiErr as Error;
-      await supabase.rpc("release_usage", { p_job_id: jobId, p_error_message: error.message });
-      return NextResponse.json({ error: "AI_RECOMMENDATION_FAILED", message: "추천을 생성하지 못했습니다. 잠시 후 다시 시도해주세요." }, { status: 500 });
+      const error = aiErr as { stage?: string; errorCode?: string; openAiStatus?: number; openAiErrorType?: string; message?: string };
+      const stage = error.stage || "OPENAI_REQUEST";
+      const errorCode = error.errorCode || "AI_RECOMMENDATION_FAILED";
+      console.error(`[${requestId}] [${stage}] errorCode=${errorCode} status=${error.openAiStatus || "N/A"} type=${error.openAiErrorType || "N/A"}`);
+      await supabase.rpc("release_usage", { p_job_id: jobId, p_error_message: error.message || "AI 추천 생성 실패" });
+      return NextResponse.json({
+        error: errorCode,
+        message: "추천을 생성하지 못했습니다. 잠시 후 다시 시도해주세요.",
+        errorCode,
+        requestId,
+      }, { status: 500 });
     }
 
     // Save Recommendations to DB with trend_verified = false forced
@@ -96,15 +106,17 @@ export async function POST(request: Request) {
 
     if (saveErr) {
       await supabase.rpc("release_usage", { p_job_id: jobId, p_error_message: saveErr.message });
-      return NextResponse.json({ error: "RECOMMENDATION_SAVE_FAILED" }, { status: 500 });
+      console.error(`[${requestId}] [RECOMMENDATION_SAVE] Code: ${saveErr.code}, Message: ${saveErr.message}`);
+      return NextResponse.json({ error: "RECOMMENDATION_SAVE_FAILED", errorCode: "RECOMMENDATION_SAVE_FAILED", requestId }, { status: 500 });
     }
 
     // Commit Usage
     await supabase.rpc("commit_usage", { p_job_id: jobId });
 
-    return NextResponse.json({ recommendations: savedRecs, jobId, alreadyExists: false });
+    return NextResponse.json({ recommendations: savedRecs, jobId, alreadyExists: false, requestId });
   } catch (err: unknown) {
     const error = err as Error;
-    return NextResponse.json({ error: "INTERNAL_SERVER_ERROR", message: error.message }, { status: 500 });
+    console.error(`[${requestId}] [UNHANDLED_EXCEPTION] Message: ${error.message}`);
+    return NextResponse.json({ error: "INTERNAL_SERVER_ERROR", message: error.message, requestId }, { status: 500 });
   }
 }
