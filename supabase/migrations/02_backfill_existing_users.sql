@@ -39,7 +39,6 @@ begin
         status,
         current_period_start,
         current_period_end,
-        canceled_at,
         created_at,
         updated_at
       ) values (
@@ -48,7 +47,6 @@ begin
         'active',
         now(),
         now() + interval '1 month',
-        null,
         v_user.created_at,
         now()
       );

@@ -57,8 +57,8 @@ export async function POST(request: Request) {
         .from("topic_recommendations")
         .select("*")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(10);
+        .eq("job_id", jobId)
+        .order("created_at", { ascending: false });
 
       return NextResponse.json({ recommendations: existingRecs, jobId, alreadyExists: true });
     }
@@ -85,6 +85,7 @@ export async function POST(request: Request) {
     // Save Recommendations to DB with trend_verified = false forced
     const recInserts = recs.map((r) => ({
       user_id: user.id,
+      job_id: jobId,
       title: r.title,
       summary: r.summary,
       reason: r.reason,

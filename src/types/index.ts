@@ -172,6 +172,7 @@ export interface GeneratedShortsProject {
 export interface TopicRecommendation {
   id: string;
   user_id?: string;
+  job_id?: string;
   title: string;
   summary: string;
   reason: string;
