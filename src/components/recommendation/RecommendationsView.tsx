@@ -37,7 +37,7 @@ export function RecommendationsView({
       setRecs(data.recommendations || []);
     } catch (err: unknown) {
       const error = err as Error;
-      setErrorMsg(error.message || "추천 생성 중 오류가 발생했습니다.");
+      setErrorMsg(error.message || "추천을 생성하지 못했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
       setIsGenerating(false);
     }

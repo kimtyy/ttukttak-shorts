@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     } catch (aiErr: unknown) {
       const error = aiErr as Error;
       await supabase.rpc("release_usage", { p_job_id: jobId, p_error_message: error.message });
-      return NextResponse.json({ error: "AI_RECOMMENDATION_FAILED", message: "AI 주제 추천 중 오류 발생" }, { status: 500 });
+      return NextResponse.json({ error: "AI_RECOMMENDATION_FAILED", message: "추천을 생성하지 못했습니다. 잠시 후 다시 시도해주세요." }, { status: 500 });
     }
 
     // Save Recommendations to DB with trend_verified = false forced
