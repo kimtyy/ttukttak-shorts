@@ -7,6 +7,7 @@ import {
 import { ScriptProvider, RecommendationProvider } from "./provider";
 import { GeneratedShortsProjectSchema, TopicRecommendationSchema } from "../schemas";
 import OpenAI from "openai";
+import { ZodError } from "zod";
 
 const SYSTEM_PROMPT_SCRIPT = `
 당신은 유튜브 쇼츠, 인스타그램 릴스, 틱톡용 세로형 콘텐츠를 설계하는 범용 AI 콘텐츠 기획자다.
@@ -40,27 +41,66 @@ export class OpenAIScriptProvider implements ScriptProvider {
     });
   }
 
-  async generateScript(input: GenerateScriptInput): Promise<GeneratedShortsProject> {
+  async generateScript(input: GenerateScriptInput, requestId?: string): Promise<GeneratedShortsProject> {
     if (!process.env.OPENAI_API_KEY) {
       if (process.env.NODE_ENV === "production") {
-        throw new Error("OPENAI_API_KEY가 설정되지 않아 대본을 생성할 수 없습니다.");
+        console.error(`[${requestId || "REQ"}] [OPENAI_REQUEST] Missing OPENAI_API_KEY in production`);
+        throw { stage: "OPENAI_REQUEST", errorCode: "OPENAI_KEY_MISSING", message: "OPENAI_API_KEY가 설정되지 않았습니다." };
       }
       return this.getMockScript(input);
     }
 
-    const response = await this.client.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT_SCRIPT },
-        { role: "user", content: JSON.stringify(input) },
-      ],
-      response_format: { type: "json_object" },
-    });
+    let response;
+    try {
+      response = await this.client.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT_SCRIPT },
+          { role: "user", content: JSON.stringify(input) },
+        ],
+        response_format: { type: "json_object" },
+      });
+    } catch (apiErr: unknown) {
+      const error = apiErr as { status?: number; type?: string; code?: string; message?: string };
+      console.error(`[${requestId || "REQ"}] [OPENAI_REQUEST] HTTP ${error.status || 500} - Type: ${error.type || "unknown"}, Code: ${error.code || "none"}, Message: ${error.message}`);
+      throw {
+        stage: "OPENAI_REQUEST",
+        errorCode: "OPENAI_REQUEST_FAILED",
+        openAiStatus: error.status,
+        openAiErrorType: error.type,
+        message: error.message || "OpenAI API 호출 실패",
+      };
+    }
 
-    const content = response.choices[0].message.content || "{}";
-    const parsed = JSON.parse(content);
+    let parsed;
+    const content = response.choices[0]?.message?.content || "{}";
+    try {
+      parsed = JSON.parse(content);
+    } catch (parseErr: unknown) {
+      console.error(`[${requestId || "REQ"}] [OPENAI_RESPONSE_PARSE] Invalid JSON from OpenAI: ${(parseErr as Error).message}`);
+      throw {
+        stage: "OPENAI_RESPONSE_PARSE",
+        errorCode: "OPENAI_INVALID_JSON",
+        message: "AI 응답 JSON 파싱 실패",
+      };
+    }
 
-    const validated = GeneratedShortsProjectSchema.parse(parsed);
+    let validated;
+    try {
+      validated = GeneratedShortsProjectSchema.parse(parsed);
+    } catch (zodErr: unknown) {
+      if (zodErr instanceof ZodError) {
+        const fieldPaths = zodErr.issues.map((i) => i.path.join(".")).join(", ");
+        console.error(`[${requestId || "REQ"}] [AI_RESPONSE_VALIDATION] Zod validation error on fields: [${fieldPaths}]`);
+        throw {
+          stage: "AI_RESPONSE_VALIDATION",
+          errorCode: "ZOD_VALIDATION_FAILED",
+          zodErrorFields: fieldPaths,
+          message: `AI 응답 검증 실패 (필드: ${fieldPaths})`,
+        };
+      }
+      throw zodErr;
+    }
 
     const totalDuration = validated.scenes.reduce((acc, s) => acc + s.duration, 0);
     if (totalDuration !== input.duration) {

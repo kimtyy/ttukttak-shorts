@@ -4,20 +4,22 @@ import { OpenAIScriptProvider } from "@/lib/ai/providers/openai";
 import { GenerateScriptInput } from "@/types";
 
 export async function POST(request: Request) {
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
   try {
     const supabase = await createClientForServer();
     const { data: { user } } = await supabase.auth.getUser();
 
     // 1. Authentication Guard
     if (!user) {
-      return NextResponse.json({ error: "AUTH_REQUIRED", message: "로그인이 필요합니다." }, { status: 401 });
+      return NextResponse.json({ error: "AUTH_REQUIRED", message: "로그인이 필요합니다.", requestId }, { status: 401 });
     }
 
     const body = await request.json();
     const { idempotencyKey, ...input }: { idempotencyKey: string } & GenerateScriptInput = body;
 
     if (!idempotencyKey) {
-      return NextResponse.json({ error: "MISSING_IDEMPOTENCY_KEY", message: "중복 방지 키가 누락되었습니다." }, { status: 400 });
+      return NextResponse.json({ error: "MISSING_IDEMPOTENCY_KEY", message: "중복 방지 키가 누락되었습니다.", requestId }, { status: 400 });
     }
 
     // 2. Reserve Usage via PostgreSQL RPC
@@ -29,7 +31,18 @@ export async function POST(request: Request) {
     });
 
     if (reserveError) {
-      return NextResponse.json({ error: reserveError.message }, { status: 400 });
+      console.error(`[${requestId}] [RESERVE_USAGE] Code: ${reserveError.code}, Message: ${reserveError.message}`);
+      return NextResponse.json(
+        {
+          error: "RESERVE_USAGE_FAILED",
+          errorCode: reserveError.code || "RESERVE_FAILED",
+          message: reserveError.message.includes("USAGE_LIMIT_EXCEEDED")
+            ? "이번 달 대본 생성 가능 횟수를 모두 소진하셨습니다."
+            : "사용량 차감 예약에 실패했습니다.",
+          requestId,
+        },
+        { status: 400 }
+      );
     }
 
     const job = Array.isArray(reserveRes) ? reserveRes[0] : reserveRes;
@@ -46,7 +59,7 @@ export async function POST(request: Request) {
         .single();
 
       if (existingProj) {
-        return NextResponse.json({ project: existingProj, jobId, alreadyExists: true });
+        return NextResponse.json({ project: existingProj, jobId, alreadyExists: true, requestId });
       }
     }
 
@@ -54,20 +67,43 @@ export async function POST(request: Request) {
     const provider = new OpenAIScriptProvider();
     let generatedScript;
     try {
-      generatedScript = await provider.generateScript(input);
-    } catch (aiError: unknown) {
-      const error = aiError as Error;
-      await supabase.rpc("release_usage", {
+      generatedScript = await provider.generateScript(input, requestId);
+    } catch (aiErr: unknown) {
+      const error = aiErr as {
+        stage?: string;
+        errorCode?: string;
+        openAiStatus?: number;
+        openAiErrorType?: string;
+        zodErrorFields?: string;
+        message?: string;
+      };
+
+      const stage = error.stage || "OPENAI_REQUEST";
+      const errorCode = error.errorCode || "AI_GENERATION_FAILED";
+
+      console.error(`[${requestId}] [${stage}] ErrorCode: ${errorCode}, Status: ${error.openAiStatus || "N/A"}, Type: ${error.openAiErrorType || "N/A"}, Fields: ${error.zodErrorFields || "N/A"}`);
+
+      // Release Usage
+      const { error: relErr } = await supabase.rpc("release_usage", {
         p_job_id: jobId,
         p_error_message: error.message || "AI 대본 생성 실패",
       });
+
+      if (relErr) {
+        console.error(`[${requestId}] [RELEASE_USAGE] Code: ${relErr.code}, Message: ${relErr.message}`);
+      }
+
       return NextResponse.json(
-        { error: "AI_GENERATION_FAILED", message: "AI 대본 생성 중 오류가 발생하여 사용량이 환급되었습니다." },
+        {
+          message: "AI 대본 생성 중 오류가 발생하여 사용량이 환불되었습니다.",
+          errorCode,
+          requestId,
+        },
         { status: 500 }
       );
     }
 
-    // 5. Create Project & Scenes in DB
+    // 4. Create Project in DB
     const { data: project, error: projError } = await supabase
       .from("projects")
       .insert({
@@ -91,14 +127,24 @@ export async function POST(request: Request) {
       .single();
 
     if (projError || !project) {
+      console.error(`[${requestId}] [PROJECT_SAVE] Code: ${projError?.code}, Message: ${projError?.message}`);
+
       await supabase.rpc("release_usage", {
         p_job_id: jobId,
         p_error_message: projError?.message || "프로젝트 저장 실패",
       });
-      return NextResponse.json({ error: "PROJECT_SAVE_FAILED", message: "프로젝트 저장 실패" }, { status: 500 });
+
+      return NextResponse.json(
+        {
+          message: "프로젝트 저장 중 오류가 발생하여 사용량이 환불되었습니다.",
+          errorCode: "PROJECT_SAVE_FAILED",
+          requestId,
+        },
+        { status: 500 }
+      );
     }
 
-    // Insert Scenes
+    // 5. Create Scenes in DB
     const sceneInserts = generatedScript.scenes.map((s, idx) => ({
       project_id: project.id,
       scene_number: idx + 1,
@@ -114,14 +160,43 @@ export async function POST(request: Request) {
       transition: s.transition,
     }));
 
-    await supabase.from("scenes").insert(sceneInserts);
+    const { error: scenesError } = await supabase.from("scenes").insert(sceneInserts);
+
+    if (scenesError) {
+      console.error(`[${requestId}] [SCENES_SAVE] Code: ${scenesError.code}, Message: ${scenesError.message}`);
+
+      await supabase.rpc("release_usage", {
+        p_job_id: jobId,
+        p_error_message: scenesError.message || "장면 저장 실패",
+      });
+
+      return NextResponse.json(
+        {
+          message: "장면 저장 중 오류가 발생하여 사용량이 환불되었습니다.",
+          errorCode: "SCENES_SAVE_FAILED",
+          requestId,
+        },
+        { status: 500 }
+      );
+    }
 
     // 6. Commit Usage Reservation
-    await supabase.rpc("commit_usage", { p_job_id: jobId });
+    const { error: commitErr } = await supabase.rpc("commit_usage", { p_job_id: jobId });
+    if (commitErr) {
+      console.error(`[${requestId}] [COMMIT_USAGE] Code: ${commitErr.code}, Message: ${commitErr.message}`);
+    }
 
-    return NextResponse.json({ project, jobId, alreadyExists: false });
+    return NextResponse.json({ project, jobId, alreadyExists: false, requestId });
   } catch (err: unknown) {
     const error = err as Error;
-    return NextResponse.json({ error: "INTERNAL_SERVER_ERROR", message: error.message }, { status: 500 });
+    console.error(`[${requestId}] [UNHANDLED_EXCEPTION] Message: ${error.message}`);
+    return NextResponse.json(
+      {
+        message: "서버 내부 오류가 발생했습니다.",
+        errorCode: "INTERNAL_SERVER_ERROR",
+        requestId,
+      },
+      { status: 500 }
+    );
   }
 }
