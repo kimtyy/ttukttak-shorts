@@ -262,8 +262,8 @@ export function SceneEditor({
           throw new Error(data.message || data.error);
         }
 
-        if (data.project?.version) {
-          setVersion(data.project.version);
+        if (data.version) {
+          setVersion(data.version);
         }
         setSaveState("saved");
       } catch {
@@ -336,10 +336,11 @@ export function SceneEditor({
   const handleGenerateMedia = async (sceneId?: string) => {
     setIsGeneratingMedia(true);
     try {
+      const idempotencyKey = `media_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       const res = await fetch(`/api/projects/${projectHeader.id}/generate-media`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sceneId }),
+        body: JSON.stringify({ sceneId, idempotencyKey }),
       });
 
       const data = await res.json();
@@ -378,12 +379,13 @@ export function SceneEditor({
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
       {/* Video Player Modal */}
-      <ShortsPlayerModal
-        isOpen={isPlayerOpen}
-        onClose={() => setIsPlayerOpen(false)}
-        title={projectHeader.title}
-        scenes={scenes}
-      />
+      {isPlayerOpen && (
+        <ShortsPlayerModal
+          onClose={() => setIsPlayerOpen(false)}
+          title={projectHeader.title}
+          scenes={scenes}
+        />
+      )}
 
       {/* Top Controls Bar */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">

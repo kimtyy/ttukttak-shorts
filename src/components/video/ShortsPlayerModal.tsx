@@ -5,33 +5,20 @@ import { ShortsScene, SceneMotion } from "@/types";
 import { Play, Pause, SkipBack, SkipForward, X, Sparkles, Volume2, VolumeX, Download } from "lucide-react";
 
 interface ShortsPlayerModalProps {
-  isOpen: boolean;
   onClose: () => void;
   title: string;
   scenes: ShortsScene[];
 }
 
-export function ShortsPlayerModal({ isOpen, onClose, title, scenes }: ShortsPlayerModalProps) {
+export function ShortsPlayerModal({ onClose, title, scenes }: ShortsPlayerModalProps) {
   const [currentSceneIdx, setCurrentSceneIdx] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
   const [progress, setProgress] = useState(0); // 0 to 100% within current scene
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const currentScene = scenes[currentSceneIdx] || null;
-
-  // Reset state when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      setCurrentSceneIdx(0);
-      setIsPlaying(true);
-      setProgress(0);
-    } else {
-      setIsPlaying(false);
-      clearTimer();
-    }
-  }, [isOpen]);
 
   const clearTimer = () => {
     if (timerRef.current) {
@@ -42,7 +29,7 @@ export function ShortsPlayerModal({ isOpen, onClose, title, scenes }: ShortsPlay
 
   // Playback timer & scene auto-advance logic
   useEffect(() => {
-    if (!isPlaying || !currentScene || !isOpen) {
+    if (!isPlaying || !currentScene) {
       clearTimer();
       return;
     }
@@ -51,8 +38,8 @@ export function ShortsPlayerModal({ isOpen, onClose, title, scenes }: ShortsPlay
     const intervalMs = 100; // update progress every 100ms
     const stepIncrement = (intervalMs / (durationSec * 1000)) * 100;
 
-    // Handle Audio Playback if available
-    if (currentScene.audio_url && currentScene.audio_url.startsWith("data:audio")) {
+    // Handle Audio Playback if available (generated narration hosted in storage, or legacy inline data URL)
+    if (currentScene.audio_url && !currentScene.audio_url.startsWith("speech://")) {
       if (audioRef.current) {
         audioRef.current.src = currentScene.audio_url;
         audioRef.current.muted = isMuted;
@@ -88,9 +75,9 @@ export function ShortsPlayerModal({ isOpen, onClose, title, scenes }: ShortsPlay
     }, intervalMs);
 
     return () => clearTimer();
-  }, [currentSceneIdx, isPlaying, isOpen, currentScene, isMuted, scenes.length]);
+  }, [currentSceneIdx, isPlaying, currentScene, isMuted, scenes.length]);
 
-  if (!isOpen || scenes.length === 0) return null;
+  if (scenes.length === 0) return null;
 
   const handleNext = () => {
     if (currentSceneIdx < scenes.length - 1) {
@@ -248,7 +235,7 @@ export function ShortsPlayerModal({ isOpen, onClose, title, scenes }: ShortsPlay
             <span>{isMuted ? "음소거 해제" : "음성 재생 중"}</span>
           </button>
 
-          {currentScene?.image_url && currentScene.image_url.startsWith("data:") && (
+          {currentScene?.image_url && (
             <a
               href={currentScene.image_url}
               download={`shorts_scene_${currentSceneIdx + 1}.jpg`}
