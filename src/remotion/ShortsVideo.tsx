@@ -1,5 +1,5 @@
 import React from "react";
-import { ShortsScene, SceneMotion } from "@/types";
+import { ShortsScene } from "@/types";
 
 export interface ShortsVideoProps {
   title: string;
@@ -18,7 +18,7 @@ export const ShortsVideo: React.FC<ShortsVideoProps> = ({ title, scenes }) => {
         fontFamily: "'Inter', sans-serif",
       }}
     >
-      {scenes.map((scene, idx) => (
+      {(scenes || []).map((scene, idx) => (
         <div
           key={scene.id || idx}
           style={{
@@ -26,7 +26,7 @@ export const ShortsVideo: React.FC<ShortsVideoProps> = ({ title, scenes }) => {
             inset: 0,
             display: "flex",
             flexDirection: "column",
-            justify"between",
+            justifyContent: "space-between",
           }}
         >
           {/* Visual Background */}
