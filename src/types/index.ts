@@ -95,6 +95,8 @@ export type UsageAction =
   | "script_generation"
   | "topic_recommendation"
   | "script_regeneration"
+  | "video_render"
+  | "youtube_publish"
   | "admin_grant"
   | "monthly_reset"
   | "refund";
@@ -119,9 +121,69 @@ export interface Plan {
   name: string;
   monthly_script_limit: number;
   monthly_recommendation_limit: number;
+  monthly_render_limit?: number;
+  monthly_publish_limit?: number;
   project_limit: number;
   is_active: boolean;
   created_at: string;
+}
+
+export interface RenderJob {
+  id: string;
+  user_id: string;
+  project_id: string;
+  status: JobStatus;
+  video_url?: string | null;
+  progress: number;
+  error_message?: string | null;
+  idempotency_key: string;
+  created_at: string;
+  updated_at: string;
+  completed_at?: string | null;
+}
+
+export interface PlatformConnection {
+  id: string;
+  user_id: string;
+  platform: "youtube" | "tiktok" | "instagram";
+  account_name: string;
+  account_id?: string;
+  scope?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PublishJob {
+  id: string;
+  user_id: string;
+  project_id: string;
+  platform: "youtube" | "tiktok" | "instagram";
+  platform_connection_id?: string | null;
+  status: JobStatus;
+  title: string;
+  description?: string;
+  tags?: string[];
+  privacy_status: "public" | "unlisted" | "private";
+  platform_video_id?: string | null;
+  platform_video_url?: string | null;
+  error_message?: string | null;
+  idempotency_key: string;
+  created_at: string;
+  updated_at: string;
+  published_at?: string | null;
+}
+
+export interface CharacterProfile {
+  id: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  reference_image_url?: string;
+  fixed_prompt_fragment?: string;
+  style_tags?: string[];
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Subscription {
