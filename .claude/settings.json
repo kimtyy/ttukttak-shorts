@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node scripts/audit-multiscene-render.mjs)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(echo \"lint exit code: $?\")"
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { ShortsScene, SceneMotion } from "@/types";
 import { Play, Pause, SkipBack, SkipForward, X, Sparkles, Volume2, VolumeX, Download } from "lucide-react";
 
@@ -21,23 +21,17 @@ export function ShortsPlayerModal({ isOpen, onClose, title, scenes }: ShortsPlay
 
   const currentScene = scenes[currentSceneIdx] || null;
 
-  // Reset state when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      setCurrentSceneIdx(0);
-      setIsPlaying(true);
-      setProgress(0);
-    } else {
-      setIsPlaying(false);
-      clearTimer();
-    }
-  }, [isOpen]);
-
-  const clearTimer = () => {
+  const clearTimer = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+  }, []);
+
+  const handleClose = () => {
+    setIsPlaying(false);
+    clearTimer();
+    onClose();
   };
 
   // Playback timer & scene auto-advance logic
@@ -88,7 +82,7 @@ export function ShortsPlayerModal({ isOpen, onClose, title, scenes }: ShortsPlay
     }, intervalMs);
 
     return () => clearTimer();
-  }, [currentSceneIdx, isPlaying, isOpen, currentScene, isMuted, scenes.length]);
+  }, [currentSceneIdx, isPlaying, isOpen, currentScene, isMuted, scenes.length, clearTimer]);
 
   if (!isOpen || scenes.length === 0) return null;
 
@@ -145,7 +139,7 @@ export function ShortsPlayerModal({ isOpen, onClose, title, scenes }: ShortsPlay
             <h3 className="text-sm font-semibold truncate max-w-[180px]">{title}</h3>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1.5 rounded-full hover:bg-white/20 text-white/80 hover:text-white transition-colors"
           >
             <X className="w-5 h-5" />
