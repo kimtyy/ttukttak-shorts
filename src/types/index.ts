@@ -95,6 +95,7 @@ export type UsageAction =
   | "script_generation"
   | "topic_recommendation"
   | "script_regeneration"
+  | "media_generation"
   | "admin_grant"
   | "monthly_reset"
   | "refund";

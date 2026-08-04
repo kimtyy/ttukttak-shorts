@@ -19,9 +19,10 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Plus, Trash2, CheckCircle, AlertTriangle, Copy, Sparkles, Play, Image as ImageIcon, Volume2 } from "lucide-react";
+import { GripVertical, Plus, Trash2, CheckCircle, AlertTriangle, Copy, Sparkles, Play, Image as ImageIcon, Volume2, Download } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ShortsPlayerModal } from "@/components/video/ShortsPlayerModal";
+import { ShortsExportModal } from "@/components/video/ShortsExportModal";
 
 function SortableSceneCard({
   scene,
@@ -220,6 +221,7 @@ export function SceneEditor({
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error" | "conflict">("saved");
   const [isGeneratingMedia, setIsGeneratingMedia] = useState(false);
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
 
   const targetDuration = projectHeader.duration || 30;
   const currentTotalDuration = scenes.reduce((acc, s) => acc + (s.duration || 0), 0);
@@ -386,6 +388,13 @@ export function SceneEditor({
           scenes={scenes}
         />
       )}
+      {isExportOpen && (
+        <ShortsExportModal
+          onClose={() => setIsExportOpen(false)}
+          title={projectHeader.title}
+          scenes={scenes}
+        />
+      )}
 
       {/* Top Controls Bar */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -455,6 +464,16 @@ export function SceneEditor({
           >
             <Play className="w-4 h-4 text-purple-400 fill-purple-400" />
             🎬 쇼츠 플레이어
+          </button>
+
+          {/* Export Modal Button */}
+          <button
+            type="button"
+            onClick={() => setIsExportOpen(true)}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-md transition-all hover:scale-105 active:scale-95"
+          >
+            <Download className="w-4 h-4" />
+            MP4로 내보내기
           </button>
 
           <button
