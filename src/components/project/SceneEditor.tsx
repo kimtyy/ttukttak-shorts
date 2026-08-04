@@ -19,7 +19,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Plus, Trash2, CheckCircle, AlertTriangle, Copy, Sparkles, Play, Image as ImageIcon, Volume2 } from "lucide-react";
+import { GripVertical, Plus, Trash2, CheckCircle, AlertTriangle, Copy, Sparkles, Play, Image as ImageIcon, Volume2, Film, Download } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ShortsPlayerModal } from "@/components/video/ShortsPlayerModal";
 
@@ -221,6 +221,12 @@ export function SceneEditor({
   const [isGeneratingMedia, setIsGeneratingMedia] = useState(false);
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
 
+  // Render Pipeline States
+  const [renderStatus, setRenderStatus] = useState<"idle" | "queued" | "processing" | "completed" | "failed">("idle");
+  const [renderProgress, setRenderProgress] = useState(0);
+  const [renderedVideoUrl, setRenderedVideoUrl] = useState<string | null>(null);
+  const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   const targetDuration = projectHeader.duration || 30;
   const currentTotalDuration = scenes.reduce((acc, s) => acc + (s.duration || 0), 0);
   const isDurationMatched = currentTotalDuration === targetDuration;
@@ -363,6 +369,57 @@ export function SceneEditor({
     }
   };
 
+  // Remotion MP4 Server Video Render Trigger with Idempotency & Async Polling
+  const handleRenderVideo = async () => {
+    const idempotencyKey = `render_job_${Date.now()}_${projectHeader.id}`;
+    setRenderStatus("queued");
+    setRenderProgress(0);
+
+    try {
+      const res = await fetch(`/api/projects/${projectHeader.id}/render`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idempotencyKey }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "동영상 렌더링 요청 중 오류가 발생했습니다.");
+      }
+
+      setRenderStatus("processing");
+      setRenderProgress(data.progress || 10);
+
+      // Start Polling for Status & Progress
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+      pollTimerRef.current = setInterval(async () => {
+        try {
+          const statusRes = await fetch(`/api/projects/${projectHeader.id}/render-status`);
+          const statusData = await statusRes.json();
+
+          if (statusRes.ok && statusData) {
+            setRenderProgress(statusData.progress || 0);
+            setRenderStatus(statusData.status);
+
+            if (statusData.status === "completed") {
+              if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+              setRenderedVideoUrl(statusData.videoUrl);
+            } else if (statusData.status === "failed") {
+              if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+              alert(`동영상 렌더링 실패: ${statusData.errorMessage || "알 수 없는 오류"}`);
+            }
+          }
+        } catch {
+          // Silent polling retry
+        }
+      }, 1200);
+    } catch (err: unknown) {
+      const error = err as Error;
+      setRenderStatus("failed");
+      alert(`동영상 렌더링 시작 오류: ${error.message}`);
+    }
+  };
+
   const handleDuplicate = async () => {
     try {
       const res = await fetch(`/api/projects/${projectHeader.id}/duplicate`, { method: "POST" });
@@ -445,6 +502,26 @@ export function SceneEditor({
             )}
           </button>
 
+          {/* Remotion MP4 Server Render Button */}
+          <button
+            type="button"
+            onClick={handleRenderVideo}
+            disabled={renderStatus === "queued" || renderStatus === "processing"}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-md transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+          >
+            {renderStatus === "processing" || renderStatus === "queued" ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                MP4 렌더링 중 ({renderProgress}%)
+              </>
+            ) : (
+              <>
+                <Film className="w-4 h-4" />
+                🎬 MP4 동영상 완성하기
+              </>
+            )}
+          </button>
+
           {/* Player Modal Button */}
           <button
             type="button"
@@ -452,7 +529,7 @@ export function SceneEditor({
             className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-md transition-all hover:scale-105 active:scale-95"
           >
             <Play className="w-4 h-4 text-purple-400 fill-purple-400" />
-            🎬 쇼츠 플레이어
+            쇼츠 미리보기
           </button>
 
           <button
@@ -464,6 +541,39 @@ export function SceneEditor({
           </button>
         </div>
       </div>
+
+      {/* Render Progress Bar Banner */}
+      {(renderStatus === "queued" || renderStatus === "processing" || renderStatus === "completed") && (
+        <div className="bg-slate-900 text-white border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Film className="w-5 h-5 text-emerald-400 animate-pulse" />
+              <span className="text-sm font-bold">
+                {renderStatus === "completed"
+                  ? "🎉 MP4 쇼츠 동영상 완성!"
+                  : `Remotion + FFmpeg 서버 비동기 렌더링 진행 중 (${renderProgress}%)`}
+              </span>
+            </div>
+            {renderedVideoUrl && (
+              <a
+                href={renderedVideoUrl}
+                download={`${projectHeader.title}_shorts.mp4`}
+                target="_blank"
+                rel="noreferrer"
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-md transition-all"
+              >
+                <Download className="w-4 h-4" /> MP4 완성본 다운로드
+              </a>
+            )}
+          </div>
+          <div className="w-full bg-slate-800 rounded-full h-2.5 overflow-hidden">
+            <div
+              className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full transition-all duration-500 ease-out"
+              style={{ width: `${renderProgress}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Duration Validation Warning */}
       {!isDurationMatched && (
