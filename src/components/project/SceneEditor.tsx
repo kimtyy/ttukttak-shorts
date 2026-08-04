@@ -19,19 +19,22 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Plus, Trash2, CheckCircle, AlertTriangle, Copy } from "lucide-react";
+import { GripVertical, Plus, Trash2, CheckCircle, AlertTriangle, Copy, Sparkles, Play, Image as ImageIcon, Volume2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { ShortsPlayerModal } from "@/components/video/ShortsPlayerModal";
 
 function SortableSceneCard({
   scene,
   index,
   onUpdate,
   onDelete,
+  onGenerateSingleMedia,
 }: {
   scene: ShortsScene;
   index: number;
   onUpdate: (id: string, field: keyof ShortsScene, value: unknown) => void;
   onDelete: (id: string) => void;
+  onGenerateSingleMedia: (sceneId: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: scene.id });
 
@@ -102,46 +105,85 @@ function SortableSceneCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <label className="block text-xs font-bold text-slate-700">내레이션 (목소리 대본)</label>
-          <textarea
-            rows={3}
-            value={scene.narration}
-            onChange={(e) => onUpdate(scene.id, "narration", e.target.value)}
-            className="w-full text-xs rounded-lg border border-slate-300 p-2.5 text-slate-800 focus:ring-1 focus:ring-blue-500"
-          />
+      {/* Main Content Grid: Texts & 9:16 Visual Preview */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        {/* Left 2 Cols: Narration & Subtitle */}
+        <div className="md:col-span-2 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-slate-700">내레이션 (목소리 대본)</label>
+              <textarea
+                rows={3}
+                value={scene.narration}
+                onChange={(e) => onUpdate(scene.id, "narration", e.target.value)}
+                className="w-full text-xs rounded-lg border border-slate-300 p-2.5 text-slate-800 focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-slate-700">화면 자막 (핵심 압축)</label>
+              <textarea
+                rows={3}
+                value={scene.caption}
+                onChange={(e) => onUpdate(scene.id, "caption", e.target.value)}
+                className="w-full text-xs rounded-lg border border-slate-300 p-2.5 text-slate-800 focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-3 rounded-lg border border-slate-100">
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">화면 연출 설명</label>
+              <input
+                type="text"
+                value={scene.visual_description}
+                onChange={(e) => onUpdate(scene.id, "visual_description", e.target.value)}
+                className="w-full text-xs rounded border border-slate-300 p-2"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-semibold text-slate-600 mb-1">이미지 생성 프롬프트 (영어)</label>
+              <input
+                type="text"
+                value={scene.image_prompt}
+                onChange={(e) => onUpdate(scene.id, "image_prompt", e.target.value)}
+                className="w-full text-xs rounded border border-slate-300 p-2 font-mono text-slate-700"
+              />
+            </div>
+          </div>
         </div>
 
-        <div className="space-y-1">
-          <label className="block text-xs font-bold text-slate-700">화면 자막 (핵심 압축)</label>
-          <textarea
-            rows={3}
-            value={scene.caption}
-            onChange={(e) => onUpdate(scene.id, "caption", e.target.value)}
-            className="w-full text-xs rounded-lg border border-slate-300 p-2.5 text-slate-800 focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-3 rounded-lg border border-slate-100">
-        <div>
-          <label className="block text-[11px] font-semibold text-slate-600 mb-1">화면 연출 설명</label>
-          <input
-            type="text"
-            value={scene.visual_description}
-            onChange={(e) => onUpdate(scene.id, "visual_description", e.target.value)}
-            className="w-full text-xs rounded border border-slate-300 p-2"
-          />
-        </div>
-        <div>
-          <label className="block text-[11px] font-semibold text-slate-600 mb-1">이미지 생성 프롬프트 (영어)</label>
-          <input
-            type="text"
-            value={scene.image_prompt}
-            onChange={(e) => onUpdate(scene.id, "image_prompt", e.target.value)}
-            className="w-full text-xs rounded border border-slate-300 p-2 font-mono text-slate-700"
-          />
+        {/* Right Col: 9:16 Imagen Media Preview Card */}
+        <div className="flex flex-col items-center justify-center p-3 bg-slate-900 rounded-xl border border-slate-800 text-white relative overflow-hidden group">
+          {scene.image_url ? (
+            <div className="relative w-full aspect-[9/16] rounded-lg overflow-hidden border border-slate-700">
+              <img
+                src={scene.image_url}
+                alt={`Scene ${index + 1} Visual`}
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+              <div className="absolute top-2 left-2 bg-purple-600/90 text-[10px] font-bold px-2 py-0.5 rounded text-white flex items-center gap-1 backdrop-blur-sm">
+                <Sparkles className="w-3 h-3" /> Imagen 3
+              </div>
+              {scene.audio_url && (
+                <div className="absolute bottom-2 right-2 bg-black/70 text-emerald-400 text-[10px] font-bold p-1 rounded-full backdrop-blur-sm">
+                  <Volume2 className="w-3.5 h-3.5" />
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="w-full aspect-[9/16] rounded-lg border-2 border-dashed border-slate-700 flex flex-col items-center justify-center p-3 text-center bg-slate-950/50">
+              <ImageIcon className="w-8 h-8 text-slate-600 mb-2" />
+              <span className="text-xs text-slate-400 font-medium">9:16 비주얼 미생성</span>
+              <button
+                type="button"
+                onClick={() => onGenerateSingleMedia(scene.id)}
+                className="mt-3 text-[11px] font-bold px-3 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white flex items-center gap-1 transition-all"
+              >
+                <Sparkles className="w-3 h-3" /> 이미지 생성
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -176,6 +218,8 @@ export function SceneEditor({
   const [version, setVersion] = useState<number>(initialProject.version || 1);
 
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error" | "conflict">("saved");
+  const [isGeneratingMedia, setIsGeneratingMedia] = useState(false);
+  const [isPlayerOpen, setIsPlayerOpen] = useState(false);
 
   const targetDuration = projectHeader.duration || 30;
   const currentTotalDuration = scenes.reduce((acc, s) => acc + (s.duration || 0), 0);
@@ -218,7 +262,9 @@ export function SceneEditor({
           throw new Error(data.message || data.error);
         }
 
-        setVersion(data.version);
+        if (data.project?.version) {
+          setVersion(data.project.version);
+        }
         setSaveState("saved");
       } catch {
         setSaveState("error");
@@ -227,19 +273,17 @@ export function SceneEditor({
     []
   );
 
+  // Debounced auto-save
   const isFirstRender = useRef(true);
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
       return;
     }
-
-    setSaveState("saving");
-    const handler = setTimeout(() => {
+    const timer = setTimeout(() => {
       performSave(scenes, projectHeader, version);
-    }, 1000);
-
-    return () => clearTimeout(handler);
+    }, 1500);
+    return () => clearTimeout(timer);
   }, [scenes, projectHeader, version, performSave]);
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -288,6 +332,37 @@ export function SceneEditor({
     setScenes((prev) => [...prev, newScene]);
   };
 
+  // Generate Google Imagen 3 Images & Audio for Project
+  const handleGenerateMedia = async (sceneId?: string) => {
+    setIsGeneratingMedia(true);
+    try {
+      const res = await fetch(`/api/projects/${projectHeader.id}/generate-media`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sceneId }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "미디어 생성 중 오류가 발생했습니다.");
+      }
+
+      if (data.scenes && Array.isArray(data.scenes)) {
+        setScenes((prev) =>
+          prev.map((s) => {
+            const updated = data.scenes.find((sc: ShortsScene) => sc.id === s.id);
+            return updated ? { ...s, ...updated } : s;
+          })
+        );
+      }
+    } catch (err: unknown) {
+      const error = err as Error;
+      alert(`AI 미디어 생성 오류: ${error.message}`);
+    } finally {
+      setIsGeneratingMedia(false);
+    }
+  };
+
   const handleDuplicate = async () => {
     try {
       const res = await fetch(`/api/projects/${projectHeader.id}/duplicate`, { method: "POST" });
@@ -302,6 +377,14 @@ export function SceneEditor({
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+      {/* Video Player Modal */}
+      <ShortsPlayerModal
+        isOpen={isPlayerOpen}
+        onClose={() => setIsPlayerOpen(false)}
+        title={projectHeader.title}
+        scenes={scenes}
+      />
+
       {/* Top Controls Bar */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
@@ -319,7 +402,7 @@ export function SceneEditor({
           <p className="text-xs text-slate-500 mt-1">버전: {version}</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border">
             {saveState === "saving" && (
               <span className="text-amber-600 flex items-center gap-1">
@@ -342,12 +425,42 @@ export function SceneEditor({
             )}
           </div>
 
+          {/* AI Media Generation Button */}
+          <button
+            type="button"
+            onClick={() => handleGenerateMedia()}
+            disabled={isGeneratingMedia}
+            className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-md transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+          >
+            {isGeneratingMedia ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Imagen 3 미디어 생성 중...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4" />
+                ✨ AI 비주얼 & 음성 생성
+              </>
+            )}
+          </button>
+
+          {/* Player Modal Button */}
+          <button
+            type="button"
+            onClick={() => setIsPlayerOpen(true)}
+            className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-md transition-all hover:scale-105 active:scale-95"
+          >
+            <Play className="w-4 h-4 text-purple-400 fill-purple-400" />
+            🎬 쇼츠 플레이어
+          </button>
+
           <button
             type="button"
             onClick={handleDuplicate}
-            className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1 transition-colors"
+            className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2.5 rounded-xl flex items-center gap-1 transition-colors"
           >
-            <Copy className="w-4 h-4" /> 프로젝트 복제
+            <Copy className="w-4 h-4" /> 복제
           </button>
         </div>
       </div>
@@ -413,6 +526,7 @@ export function SceneEditor({
                   index={index}
                   onUpdate={handleUpdateScene}
                   onDelete={handleDeleteScene}
+                  onGenerateSingleMedia={(sceneId) => handleGenerateMedia(sceneId)}
                 />
               ))}
             </div>

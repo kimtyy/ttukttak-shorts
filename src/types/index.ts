@@ -152,6 +152,10 @@ export interface ShortsScene {
   asset_source: AssetSource;
   motion: SceneMotion;
   transition: SceneTransition;
+  image_url?: string | null;
+  audio_url?: string | null;
+  video_url?: string | null;
+  media_status?: "pending" | "generating" | "completed" | "failed";
 }
 
 export interface GeneratedShortsProject {
