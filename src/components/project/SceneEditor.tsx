@@ -268,8 +268,8 @@ export function SceneEditor({
           throw new Error(data.message || data.error);
         }
 
-        if (data.project?.version) {
-          setVersion(data.project.version);
+        if (data.version) {
+          setVersion(data.version);
         }
         setSaveState("saved");
       } catch {
@@ -279,7 +279,15 @@ export function SceneEditor({
     []
   );
 
-  // Debounced auto-save
+  // Debounced auto-save. `version` is tracked via a ref rather than a dependency:
+  // it only changes as a *result* of a save (or a conflict), never as a user edit,
+  // so it must not itself re-trigger the debounce timer (that caused one redundant
+  // save request to fire right after every successful save).
+  const versionRef = useRef(version);
+  useEffect(() => {
+    versionRef.current = version;
+  }, [version]);
+
   const isFirstRender = useRef(true);
   useEffect(() => {
     if (isFirstRender.current) {
@@ -287,10 +295,10 @@ export function SceneEditor({
       return;
     }
     const timer = setTimeout(() => {
-      performSave(scenes, projectHeader, version);
+      performSave(scenes, projectHeader, versionRef.current);
     }, 1500);
     return () => clearTimeout(timer);
-  }, [scenes, projectHeader, version, performSave]);
+  }, [scenes, projectHeader, performSave]);
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
