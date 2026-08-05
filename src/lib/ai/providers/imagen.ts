@@ -1,7 +1,10 @@
 /**
- * Google Imagen 3 API & Visual Generation Provider
- * Supports Google Imagen 3 (imagen-3.0-generate-002) via Google Generative Language API,
- * with fallback support for OpenAI DALL-E 3 / Pollinations AI.
+ * Google Gemini Image Generation Provider
+ * imagen-3.0-generate-002 was fully retired by Google (2025-11-10) and the
+ * imagen-4.0-* family is scheduled for shutdown on 2026-08-17, so this calls
+ * the native Gemini image model (gemini-3.1-flash-image) via the
+ * generateContent endpoint instead of the legacy Imagen :predict endpoint.
+ * Falls back to Pollinations AI if the Gemini call fails or no API key is set.
  */
 
 export interface GenerateImageOptions {
@@ -14,7 +17,7 @@ export interface GenerateImageOptions {
 
 export interface ImageGenerationResult {
   imageUrl: string; // base64 data URL or HTTP URL
-  provider: "imagen-3" | "dall-e-3" | "pollinations";
+  provider: "gemini-3.1-flash-image" | "dall-e-3" | "pollinations";
   mimeType: string;
 }
 
@@ -26,7 +29,7 @@ export class GoogleImagenProvider {
   }
 
   /**
-   * Generates a 9:16 vertical short scene image using Google Imagen 3 API.
+   * Generates a 9:16 vertical short scene image using the Gemini image model.
    */
   async generateImage(options: GenerateImageOptions): Promise<ImageGenerationResult> {
     const { prompt, visualStyle, mood, aspectRatio = "9:16", requestId } = options;
@@ -36,12 +39,12 @@ export class GoogleImagenProvider {
 
     if (this.apiKey) {
       try {
-        console.log(`[${requestId || "IMAGEN"}] Generating image via Google Imagen 3...`);
-        const result = await this.callImagenApi(enhancedPrompt, aspectRatio);
+        console.log(`[${requestId || "IMAGEN"}] Generating image via Gemini (gemini-3.1-flash-image)...`);
+        const result = await this.callGeminiImageApi(enhancedPrompt, aspectRatio);
         return result;
       } catch (err: unknown) {
         console.warn(
-          `[${requestId || "IMAGEN"}] Google Imagen 3 failed: ${err instanceof Error ? err.message : String(err)}. Falling back to secondary provider.`
+          `[${requestId || "IMAGEN"}] Gemini image generation failed: ${err instanceof Error ? err.message : String(err)}. Falling back to secondary provider.`
         );
       }
     } else {
@@ -58,8 +61,8 @@ export class GoogleImagenProvider {
     return `${basePrompt}${stylePart}${moodPart}, vertical 9:16 portrait orientation, high resolution, detailed cinematic quality, 8k, vibrant lighting, centered framing for mobile short video format`;
   }
 
-  private async callImagenApi(prompt: string, aspectRatio: "9:16" | "1:1" | "16:9"): Promise<ImageGenerationResult> {
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${this.apiKey}`;
+  private async callGeminiImageApi(prompt: string, aspectRatio: "9:16" | "1:1" | "16:9"): Promise<ImageGenerationResult> {
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent?key=${this.apiKey}`;
 
     const response = await fetch(endpoint, {
       method: "POST",
@@ -67,16 +70,15 @@ export class GoogleImagenProvider {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        instances: [
+        contents: [
           {
-            prompt,
+            parts: [{ text: prompt }],
           },
         ],
-        parameters: {
-          sampleCount: 1,
-          aspectRatio,
-          outputOptions: {
-            mimeType: "image/jpeg",
+        generationConfig: {
+          responseModalities: ["TEXT", "IMAGE"],
+          imageConfig: {
+            aspectRatio,
           },
         },
       }),
@@ -84,22 +86,25 @@ export class GoogleImagenProvider {
 
     if (!response.ok) {
       const errText = await response.text();
-      throw new Error(`Imagen API HTTP ${response.status}: ${errText}`);
+      throw new Error(`Gemini image API HTTP ${response.status}: ${errText}`);
     }
 
     const data = await response.json();
-    const predictions = data.predictions;
+    const parts = data.candidates?.[0]?.content?.parts as
+      | Array<{ inlineData?: { data: string; mimeType?: string } }>
+      | undefined;
+    const imagePart = parts?.find((part) => part.inlineData?.data);
 
-    if (!predictions || predictions.length === 0 || !predictions[0].bytesBase64Encoded) {
-      throw new Error("Invalid response format from Google Imagen 3 API");
+    if (!imagePart?.inlineData?.data) {
+      throw new Error("Invalid response format from Gemini image API: no inline image data");
     }
 
-    const base64Data = predictions[0].bytesBase64Encoded;
-    const mimeType = predictions[0].mimeType || "image/jpeg";
+    const base64Data = imagePart.inlineData.data;
+    const mimeType = imagePart.inlineData.mimeType || "image/png";
 
     return {
       imageUrl: `data:${mimeType};base64,${base64Data}`,
-      provider: "imagen-3",
+      provider: "gemini-3.1-flash-image",
       mimeType,
     };
   }
