@@ -91,9 +91,16 @@ export async function POST(
 
     // 3. Trigger Async Background Render Worker (Non-blocking)
     const workerUrl = new URL(`/api/jobs/render-worker`, request.url).toString();
+    const workerSecret = process.env.RENDER_WORKER_SECRET || "";
+    if (!workerSecret) {
+      console.error(`[${requestId}] RENDER_WORKER_SECRET is not configured; worker trigger will be rejected.`);
+    }
     fetch(workerUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-worker-secret": workerSecret,
+      },
       body: JSON.stringify({
         renderJobId: newRenderJob.id,
         usageJobId: jobId,

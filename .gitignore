@@ -42,3 +42,6 @@ next-env.d.ts
 
 # media renders
 public/*.mp4
+/public/renders/
+/logs/
+/scratch_audio/
