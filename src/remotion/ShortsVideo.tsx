@@ -1,5 +1,5 @@
 import React from "react";
-import { Series, Audio, Img } from "remotion";
+import { Series, Html5Audio, Img } from "remotion";
 import { ShortsScene } from "@/types";
 
 export type ShortsVideoProps = {
@@ -63,10 +63,13 @@ export const ShortsVideo: React.FC<ShortsVideoProps> = ({ title, scenes, fps = 3
                   </div>
                 )}
 
-                {/* Optional Audio Narration Layer */}
-                {scene.audio_url && scene.audio_url.startsWith("http") && (
-                  <Audio src={scene.audio_url} />
-                )}
+                {/* Optional Audio Narration Layer. "speech://..." is a browser-only
+                    Web Speech API marker (see tts.ts fallback) with no playable
+                    asset behind it, so it is intentionally excluded here. */}
+                {scene.audio_url &&
+                  (scene.audio_url.startsWith("data:audio") || scene.audio_url.startsWith("http")) && (
+                    <Html5Audio src={scene.audio_url} />
+                  )}
 
                 {/* Subtitle Overlay */}
                 <div
