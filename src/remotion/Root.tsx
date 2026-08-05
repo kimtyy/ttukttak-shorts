@@ -1,5 +1,5 @@
 import React from "react";
-import { Composition, registerRoot } from "remotion";
+import { Composition, registerRoot, AnyZodObject } from "remotion";
 import { ShortsVideo, ShortsVideoProps } from "./ShortsVideo";
 
 export const RemotionRoot: React.FC = () => {
@@ -46,7 +46,7 @@ export const RemotionRoot: React.FC = () => {
 
   return (
     <>
-      <Composition<ShortsVideoProps>
+      <Composition<AnyZodObject, ShortsVideoProps>
         id="ShortsVideo"
         component={ShortsVideo}
         durationInFrames={durationInFrames}

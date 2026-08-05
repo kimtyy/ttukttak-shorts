@@ -2,11 +2,11 @@ import React from "react";
 import { Series, Audio, Img } from "remotion";
 import { ShortsScene } from "@/types";
 
-export interface ShortsVideoProps {
+export type ShortsVideoProps = {
   title: string;
   scenes: ShortsScene[];
   fps?: number;
-}
+};
 
 export const ShortsVideo: React.FC<ShortsVideoProps> = ({ title, scenes, fps = 30 }) => {
   return (
