@@ -71,6 +71,7 @@ export async function POST(
     }
 
     const updatedScenes = [];
+    const failures: Array<{ sceneId: string; sceneNumber: number; stage: string; message: string }> = [];
 
     // Process scenes in parallel or sequential
     for (const scene of targetScenes) {
@@ -98,7 +99,7 @@ export async function POST(
             image_url: imageResult.imageUrl,
             audio_url: audioResult.audioUrl,
             media_status: "completed",
-            asset_source: imageResult.provider === "imagen-3" ? "ai_image" : "ai_image",
+            asset_source: "ai_image",
             updated_at: new Date().toISOString(),
           })
           .eq("id", scene.id)
@@ -107,24 +108,40 @@ export async function POST(
 
         if (updateErr) {
           console.error(`[${requestId}] Failed to update scene ${scene.id}: ${updateErr.message}`);
-          updatedScenes.push({
-            ...scene,
-            image_url: imageResult.imageUrl,
-            audio_url: audioResult.audioUrl,
-            media_status: "completed",
+          failures.push({
+            sceneId: scene.id,
+            sceneNumber: scene.scene_number,
+            stage: "DB_UPDATE",
+            message: updateErr.message,
           });
-        } else {
-          updatedScenes.push(updatedScene);
+          await supabase.from("scenes").update({ media_status: "failed" }).eq("id", scene.id);
+          continue;
         }
+
+        updatedScenes.push(updatedScene);
       } catch (sceneErr: unknown) {
-        console.error(
-          `[${requestId}] Error processing scene ${scene.id}: ${sceneErr instanceof Error ? sceneErr.message : String(sceneErr)}`
-        );
-        await supabase
-          .from("scenes")
-          .update({ media_status: "failed" })
-          .eq("id", scene.id);
+        const message = sceneErr instanceof Error ? sceneErr.message : String(sceneErr);
+        console.error(`[${requestId}] Error processing scene ${scene.id}: ${message}`);
+        failures.push({ sceneId: scene.id, sceneNumber: scene.scene_number, stage: "GENERATION", message });
+        await supabase.from("scenes").update({ media_status: "failed" }).eq("id", scene.id);
       }
+    }
+
+    if (failures.length > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "MEDIA_GENERATION_FAILED",
+          message: `${failures.length}/${targetScenes.length}개 씬의 미디어 생성 또는 저장에 실패했습니다.`,
+          projectId,
+          processedCount: updatedScenes.length,
+          failedCount: failures.length,
+          failures,
+          scenes: updatedScenes,
+          requestId,
+        },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({
