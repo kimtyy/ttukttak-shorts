@@ -45,3 +45,5 @@ public/*.mp4
 /public/renders/
 /logs/
 /scratch_audio/
+
+.vercel

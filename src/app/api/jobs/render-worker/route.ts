@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { spawn } from "child_process";
 import path from "path";
-import fs from "fs";
 
 /**
  * Internal trigger endpoint. Never imports @remotion/renderer / @remotion/bundler
@@ -15,6 +14,14 @@ import fs from "fs";
  * routes), so it requires its own shared-secret check — anyone who could reach it
  * unauthenticated would be able to trigger arbitrary-project renders through the
  * service-role worker.
+ *
+ * No file-based logging here: Vercel's Node.js serverless functions only allow
+ * writes under /tmp, everything else (including the deployment's own working
+ * directory, e.g. /var/task) is read-only, so `fs.mkdirSync("./logs/...")`
+ * threw ENOENT in production and crashed this handler before it ever reached
+ * spawn(). The child's stdio is inherited instead, so its output lands in the
+ * same place this route's own console.log calls do (Vercel's function logs) —
+ * no writable directory required either way.
  */
 export async function POST(request: Request) {
   const requestId = `worker_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -49,12 +56,8 @@ export async function POST(request: Request) {
   }
 
   const scriptPath = path.resolve("./scripts/render-worker-standalone.mjs");
-  const logDir = path.resolve("./logs/render-worker");
-  if (!fs.existsSync(logDir)) {
-    fs.mkdirSync(logDir, { recursive: true });
-  }
-  const logPath = path.join(logDir, `${renderJobId}.log`);
-  const logFd = fs.openSync(logPath, "a");
+
+  console.log(`[${requestId}] Spawning render-worker-standalone.mjs for renderJobId=${renderJobId} projectId=${projectId}`);
 
   const child = spawn(process.execPath, [scriptPath], {
     cwd: process.cwd(),
@@ -66,19 +69,22 @@ export async function POST(request: Request) {
       USER_ID: userId,
     },
     detached: true,
-    stdio: ["ignore", logFd, logFd],
+    stdio: ["ignore", "inherit", "inherit"],
+  });
+
+  child.on("error", (err) => {
+    console.error(`[${requestId}] Failed to spawn render-worker-standalone.mjs: ${err.message}`);
   });
 
   child.unref();
 
-  console.log(`[${requestId}] Spawned render-worker-standalone.mjs pid=${child.pid} for renderJobId=${renderJobId}, logging to ${logPath}`);
+  console.log(`[${requestId}] Spawned render-worker-standalone.mjs pid=${child.pid} for renderJobId=${renderJobId}`);
 
   return NextResponse.json({
     success: true,
     renderJobId,
     status: "processing",
     pid: child.pid,
-    logPath: `/logs/render-worker/${renderJobId}.log`,
     requestId,
   }, { status: 202 });
 }
