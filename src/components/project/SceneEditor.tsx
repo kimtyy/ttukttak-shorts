@@ -396,7 +396,9 @@ export function SceneEditor({
       }
 
       setRenderStatus("processing");
-      setRenderProgress(data.progress || 10);
+      // `data.progress` is genuinely 0 right after queuing (falsy but valid) -
+      // `||` would treat that as "missing" and show a fake 10% for a moment.
+      setRenderProgress(data.progress ?? 10);
 
       // Start Polling for Status & Progress
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
