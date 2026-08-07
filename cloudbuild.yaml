@@ -1,0 +1,13 @@
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-f"
+      - "Dockerfile.render-worker"
+      - "-t"
+      - "${_IMAGE_TAG}"
+      - "."
+images:
+  - "${_IMAGE_TAG}"
+substitutions:
+  _IMAGE_TAG: "asia-northeast3-docker.pkg.dev/ttukttak-shorts/ttukttak-shorts-render/worker:test"

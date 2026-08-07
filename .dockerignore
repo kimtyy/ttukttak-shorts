@@ -1,0 +1,31 @@
+# Only Dockerfile.render-worker's explicit COPY list matters for what ends up
+# in the image, but this still trims what gets uploaded to the Docker daemon
+# as build context (and keeps secrets from ever being sent, defense in depth).
+
+node_modules
+.next
+.git
+.vercel
+
+.env
+.env.*
+!.env.example
+
+public
+logs
+scratch_audio
+scripts/e2e-tmp
+
+src/app
+src/components
+src/lib
+src/__tests__
+*.test.ts
+*.test.tsx
+
+*.md
+next.config.ts
+next-env.d.ts
+vitest.config.ts
+eslint.config.mjs
+postcss.config.mjs

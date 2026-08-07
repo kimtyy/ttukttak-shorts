@@ -1,0 +1,91 @@
+# ==============================================================================
+# Cloud Run worker image for scripts/render-worker-standalone.mjs
+#
+# This is a one-shot job container, not an HTTP service: it reads
+# RENDER_JOB_ID / USAGE_JOB_ID / PROJECT_ID / USER_ID (plus the Supabase
+# service-role env vars) from the environment, renders exactly one video,
+# updates render_jobs / usage_ledger, and exits (0 on success, 1 on failure).
+# That maps directly onto a Cloud Run Job, not a Cloud Run Service — there is
+# no HTTP server here and nothing listens on $PORT. (Deployment/trigger wiring
+# is a later step; this image only needs to build and run correctly.)
+#
+# Base: Debian ("bookworm"), not Alpine. @remotion/renderer's Linux compositor
+# is glibc-linked (@remotion/compositor-linux-x64-gnu, not the musl variant),
+# and Chromium's prebuilt binaries generally assume glibc too.
+# ==============================================================================
+FROM node:24-bookworm-slim
+
+# ---- System dependencies -----------------------------------------------------
+# - libnss3 / libatk-bridge2.0-0 / libcups2 / libxkbcommon0 / libgbm1 /
+#   libasound2 and the rest of the libX*/libgtk/libpango set: required for
+#   Chromium (Remotion renders each frame in a real, if headless, browser).
+# - fonts-noto-cjk: scene captions/narration are Korean; without a CJK font
+#   Chromium falls back to tofu boxes instead of rendering the text.
+# - fonts-liberation: sane default Latin/number glyphs, Chromium expects some
+#   base font family to be present.
+# - ffmpeg: explicitly required by this project even though
+#   @remotion/compositor-linux-x64-gnu also bundles its own ffmpeg build.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    wget \
+    xdg-utils \
+    fonts-liberation \
+    fonts-noto-cjk \
+    ffmpeg \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libc6 \
+    libcairo2 \
+    libcups2 \
+    libdbus-1-3 \
+    libexpat1 \
+    libfontconfig1 \
+    libgbm1 \
+    libglib2.0-0 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libstdc++6 \
+    libx11-6 \
+    libx11-xcb1 \
+    libxcb1 \
+    libxcomposite1 \
+    libxcursor1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxi6 \
+    libxkbcommon0 \
+    libxrandr2 \
+    libxrender1 \
+    libxss1 \
+    libxtst6 \
+  && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# ---- Dependencies (own layer, cached independently of source changes) -------
+COPY package.json package-lock.json tsconfig.json ./
+RUN npm ci --omit=dev
+
+# ---- Pre-download Remotion's headless Chromium into the image itself --------
+# Baking this in at build time means no network fetch (and no failure mode
+# tied to one) the first time a render actually runs in the deployed job.
+RUN npx remotion browser ensure
+
+# ---- Application code ---------------------------------------------------------
+# Only what render-project.mjs's Remotion bundle() call actually needs to
+# resolve: the composition (Root.tsx -> ShortsVideo.tsx), the ShortsScene
+# type it imports via the "@/*" -> "./src/*" tsconfig path alias, and the
+# worker scripts themselves.
+COPY scripts ./scripts
+COPY src/remotion ./src/remotion
+COPY src/types ./src/types
+
+ENV NODE_ENV=production
+
+# Not a web server — Cloud Run Job, runs to completion and exits.
+ENTRYPOINT ["node", "scripts/render-worker-standalone.mjs"]
