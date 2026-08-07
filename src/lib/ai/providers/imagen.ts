@@ -9,11 +9,32 @@
 
 export interface GenerateImageOptions {
   prompt: string;
-  visualStyle?: string;
-  mood?: string;
+  visualStyle?: string; // VisualStyle from @/types
+  mood?: string; // Mood from @/types
   aspectRatio?: "9:16" | "1:1" | "16:9";
   requestId?: string;
 }
+
+// VisualStyle / Mood enum values (@/types) are DB-friendly codes, not prompt text
+// (e.g. "animation_3d", "warm_photo") — map them to natural-language phrases for
+// the actual image generation prompt.
+const VISUAL_STYLE_PROMPT_MAP: Record<string, string> = {
+  cinematic: "cinematic realistic photography",
+  documentary: "documentary photography",
+  animation_3d: "3D animated render",
+  webtoon: "Korean webtoon illustration",
+  watercolor: "watercolor painting",
+  warm_photo: "warm nostalgic photograph",
+};
+
+const MOOD_PROMPT_MAP: Record<string, string> = {
+  emotional: "emotional, touching",
+  calm: "calm, serene",
+  cheerful: "cheerful, upbeat",
+  tense: "tense, suspenseful",
+  hopeful: "hopeful, uplifting",
+  serious: "serious, solemn",
+};
 
 export interface ImageGenerationResult {
   imageUrl: string; // base64 data URL or HTTP URL
@@ -39,7 +60,7 @@ export class GoogleImagenProvider {
 
     if (this.apiKey) {
       try {
-        console.log(`[${requestId || "IMAGEN"}] Generating image via Gemini (gemini-3.1-flash-image)...`);
+        console.log(`[${requestId || "IMAGEN"}] Generating image via Gemini (gemini-3.1-flash-image). prompt="${enhancedPrompt}"`);
         const result = await this.callGeminiImageApi(enhancedPrompt, aspectRatio);
         return result;
       } catch (err: unknown) {
@@ -56,8 +77,10 @@ export class GoogleImagenProvider {
   }
 
   private buildEnhancedPrompt(basePrompt: string, visualStyle?: string, mood?: string): string {
-    const stylePart = visualStyle ? `, ${visualStyle} style` : "";
-    const moodPart = mood ? `, ${mood} atmosphere` : "";
+    const resolvedStyle = visualStyle ? VISUAL_STYLE_PROMPT_MAP[visualStyle] || visualStyle : "";
+    const resolvedMood = mood ? MOOD_PROMPT_MAP[mood] || mood : "";
+    const stylePart = resolvedStyle ? `, ${resolvedStyle} style` : "";
+    const moodPart = resolvedMood ? `, ${resolvedMood} atmosphere` : "";
     return `${basePrompt}${stylePart}${moodPart}, vertical 9:16 portrait orientation, high resolution, detailed cinematic quality, 8k, vibrant lighting, centered framing for mobile short video format`;
   }
 
