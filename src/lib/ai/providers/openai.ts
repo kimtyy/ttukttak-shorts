@@ -26,6 +26,7 @@ const SYSTEM_PROMPT_SCRIPT = `
 자막은 내레이션 전체를 복사하지 않고 핵심만 압축한다.
 이미지 프롬프트는 영어로 작성한다.
 이미지 프롬프트에는 vertical 9:16 composition과 no text를 포함한다.
+이미지 프롬프트에 사람이 등장하는 경우, 인종/국적이 별도로 명시되지 않는 한 기본적으로 한국인 외모(Korean appearance/ethnicity)로 묘사한다. (예: "a Korean woman in her 30s", "a Korean man")
 모든 장면 duration의 합은 선택한 전체 영상 길이와 일치해야 한다.
 
 다른 설명, 코드블록 없이 아래 형식의 JSON 객체 하나만 출력한다:
