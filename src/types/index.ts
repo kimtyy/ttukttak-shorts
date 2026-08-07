@@ -29,6 +29,29 @@ export type LaunchStatus =
   | "in_development"
   | "partner_recruitment";
 
+export type VisualStyle =
+  | "cinematic"
+  | "documentary"
+  | "animation_3d"
+  | "webtoon"
+  | "watercolor"
+  | "warm_photo";
+
+export type VoiceStyle =
+  | "calm_middle_aged_male"
+  | "warm_middle_aged_female"
+  | "bright_female"
+  | "trustworthy_male"
+  | "documentary_narrator";
+
+export type Mood =
+  | "emotional"
+  | "calm"
+  | "cheerful"
+  | "tense"
+  | "hopeful"
+  | "serious";
+
 export type SceneRole =
   | "hook"
   | "problem"
@@ -257,9 +280,9 @@ export interface GenerateScriptInput {
   topic: string;
   purpose: VideoPurpose;
   duration: 15 | 30 | 45 | 60;
-  visual_style?: string;
-  voice_style?: string;
-  mood?: string;
+  visual_style?: VisualStyle;
+  voice_style?: VoiceStyle;
+  mood?: Mood;
   brand_name?: string;
   key_message?: string;
   target_audience?: string;
