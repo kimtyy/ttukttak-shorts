@@ -1,5 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
+import { Storage } from "@google-cloud/storage";
 import path from "path";
+import os from "os";
+import fs from "fs";
 import { renderProject } from "./lib/render-project.mjs";
 
 /**
@@ -53,9 +56,13 @@ async function main() {
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  const outputBucket = process.env.RENDER_OUTPUT_BUCKET || "";
 
   if (!supabaseUrl || !serviceRoleKey) {
     throw new Error("NEXT_PUBLIC_SUPABASE_URL 또는 SUPABASE_SERVICE_ROLE_KEY가 설정되지 않았습니다.");
+  }
+  if (!outputBucket) {
+    throw new Error("RENDER_OUTPUT_BUCKET이 설정되지 않았습니다. 렌더링 결과물을 저장할 GCS 버킷이 필요합니다.");
   }
 
   supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
@@ -77,7 +84,8 @@ async function main() {
 
   await updateProgress(15);
 
-  const outputLocation = path.resolve("./public/renders", `${projectId}_${Date.now()}.mp4`);
+  const objectName = `${projectId}_${Date.now()}.mp4`;
+  const outputLocation = path.join(os.tmpdir(), objectName);
 
   const result = await renderProject({
     title: project.title || "뚝딱쇼츠 동영상",
@@ -88,9 +96,19 @@ async function main() {
     },
   });
 
+  await updateProgress(90);
+
+  log(`Uploading render to gs://${outputBucket}/${objectName}`);
+  const storage = new Storage();
+  await storage.bucket(outputBucket).upload(outputLocation, {
+    destination: objectName,
+    contentType: "video/mp4",
+  });
+  fs.unlinkSync(outputLocation);
+
   await updateProgress(95);
 
-  const videoUrl = `/renders/${path.basename(outputLocation)}`;
+  const videoUrl = `https://storage.googleapis.com/${outputBucket}/${objectName}`;
   const completedTime = new Date().toISOString();
 
   settled = true;
