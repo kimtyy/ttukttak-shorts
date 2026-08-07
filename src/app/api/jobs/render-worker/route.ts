@@ -1,28 +1,35 @@
 import { NextResponse } from "next/server";
-import { spawn } from "child_process";
-import path from "path";
+import { JobsClient } from "@google-cloud/run";
 
 /**
- * Internal trigger endpoint. Never imports @remotion/renderer / @remotion/bundler
- * directly — those packages pull in platform-specific native compositor binaries
- * (@remotion/compositor-linux-x64-gnu, etc.) that break `next build` when bundled
- * into a route handler. Instead this route only authenticates the request and
- * spawns scripts/render-worker-standalone.mjs as a separate OS process, which is
- * also the shape Cloud Run migration will reuse directly as a container entrypoint.
+ * Internal trigger endpoint. Triggers an Execution of the `render-worker` Cloud
+ * Run Job (see Dockerfile.render-worker / scripts/render-worker-standalone.mjs,
+ * which is the container's entrypoint) via the Cloud Run Admin API, passing the
+ * per-render parameters as container env var overrides instead of spawning a
+ * local child process — Vercel's serverless filesystem/process model can't host
+ * a Chromium-based Remotion render, which is why this now delegates to Cloud Run.
  *
  * This endpoint is NOT protected by src/middleware.ts (which only guards page
  * routes), so it requires its own shared-secret check — anyone who could reach it
- * unauthenticated would be able to trigger arbitrary-project renders through the
- * service-role worker.
- *
- * No file-based logging here: Vercel's Node.js serverless functions only allow
- * writes under /tmp, everything else (including the deployment's own working
- * directory, e.g. /var/task) is read-only, so `fs.mkdirSync("./logs/...")`
- * threw ENOENT in production and crashed this handler before it ever reached
- * spawn(). The child's stdio is inherited instead, so its output lands in the
- * same place this route's own console.log calls do (Vercel's function logs) —
- * no writable directory required either way.
+ * unauthenticated would be able to trigger arbitrary-project renders (billable
+ * Cloud Run executions) through the service-role worker.
  */
+
+let jobsClient: JobsClient | null = null;
+
+function getJobsClient(): JobsClient {
+  if (jobsClient) return jobsClient;
+
+  const keyBase64 = process.env.GCP_SERVICE_ACCOUNT_KEY_BASE64 || "";
+  if (!keyBase64) {
+    throw new Error("GCP_SERVICE_ACCOUNT_KEY_BASE64가 설정되지 않았습니다.");
+  }
+  const credentials = JSON.parse(Buffer.from(keyBase64, "base64").toString("utf-8"));
+
+  jobsClient = new JobsClient({ credentials, projectId: credentials.project_id });
+  return jobsClient;
+}
+
 export async function POST(request: Request) {
   const requestId = `worker_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
@@ -55,36 +62,55 @@ export async function POST(request: Request) {
     );
   }
 
-  const scriptPath = path.resolve("./scripts/render-worker-standalone.mjs");
+  const gcpProjectId = process.env.GCP_PROJECT_ID || "";
+  const gcpRegion = process.env.GCP_REGION || "";
+  const cloudRunJobName = process.env.CLOUD_RUN_JOB_NAME || "";
 
-  console.log(`[${requestId}] Spawning render-worker-standalone.mjs for renderJobId=${renderJobId} projectId=${projectId}`);
+  if (!gcpProjectId || !gcpRegion || !cloudRunJobName) {
+    console.error(`[${requestId}] GCP_PROJECT_ID / GCP_REGION / CLOUD_RUN_JOB_NAME이 서버에 설정되지 않았습니다.`);
+    return NextResponse.json(
+      { error: "WORKER_MISCONFIGURED", message: "Cloud Run Job 설정이 서버에 없습니다.", requestId },
+      { status: 500 }
+    );
+  }
 
-  const child = spawn(process.execPath, [scriptPath], {
-    cwd: process.cwd(),
-    env: {
-      ...process.env,
-      RENDER_JOB_ID: renderJobId,
-      USAGE_JOB_ID: usageJobId || "",
-      PROJECT_ID: projectId,
-      USER_ID: userId,
-    },
-    detached: true,
-    stdio: ["ignore", "inherit", "inherit"],
-  });
+  console.log(`[${requestId}] Triggering Cloud Run Job execution for renderJobId=${renderJobId} projectId=${projectId}`);
 
-  child.on("error", (err) => {
-    console.error(`[${requestId}] Failed to spawn render-worker-standalone.mjs: ${err.message}`);
-  });
+  try {
+    const client = getJobsClient();
+    const [operation] = await client.runJob({
+      name: `projects/${gcpProjectId}/locations/${gcpRegion}/jobs/${cloudRunJobName}`,
+      overrides: {
+        containerOverrides: [
+          {
+            env: [
+              { name: "RENDER_JOB_ID", value: renderJobId },
+              { name: "USAGE_JOB_ID", value: usageJobId || "" },
+              { name: "PROJECT_ID", value: projectId },
+              { name: "USER_ID", value: userId },
+            ],
+          },
+        ],
+      },
+    });
 
-  child.unref();
+    const executionName = operation.metadata && "name" in operation.metadata ? operation.metadata.name : undefined;
 
-  console.log(`[${requestId}] Spawned render-worker-standalone.mjs pid=${child.pid} for renderJobId=${renderJobId}`);
+    console.log(`[${requestId}] Cloud Run Job execution started: ${executionName || operation.name}`);
 
-  return NextResponse.json({
-    success: true,
-    renderJobId,
-    status: "processing",
-    pid: child.pid,
-    requestId,
-  }, { status: 202 });
+    return NextResponse.json({
+      success: true,
+      renderJobId,
+      status: "processing",
+      executionName,
+      requestId,
+    }, { status: 202 });
+  } catch (err: unknown) {
+    const error = err as Error;
+    console.error(`[${requestId}] Failed to trigger Cloud Run Job execution: ${error.message}`);
+    return NextResponse.json(
+      { error: "TRIGGER_FAILED", message: error.message, requestId },
+      { status: 500 }
+    );
+  }
 }
