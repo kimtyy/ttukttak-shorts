@@ -47,3 +47,6 @@ public/*.mp4
 /scratch_audio/
 
 .vercel
+
+# PWA icon generator script (local utility only)
+scripts/generate_icons.py

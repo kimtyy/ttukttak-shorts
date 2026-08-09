@@ -1,0 +1,21 @@
+{
+  "name": "뚝딱쇼츠",
+  "short_name": "뚝딱쇼츠",
+  "description": "만들고 싶은 내용을 직접 입력하거나 AI 추천 주제를 선택하면, 쇼츠·릴스용 대본과 장면을 자동으로 기획해주는 범용 콘텐츠 제작 서비스",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
