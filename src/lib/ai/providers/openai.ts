@@ -13,7 +13,8 @@ import {
 import OpenAI from "openai";
 import { ZodError } from "zod";
 
-const DEFAULT_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+const SCRIPT_MODEL = process.env.OPENAI_MODEL || "gpt-4o";
+const RECOMMENDATION_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
 const SYSTEM_PROMPT_SCRIPT = `
 당신은 유튜브 쇼츠, 인스타그램 릴스, 틱톡용 세로형 콘텐츠를 설계하는 범용 AI 콘텐츠 기획자다.
@@ -132,7 +133,7 @@ export class OpenAIScriptProvider implements ScriptProvider {
     let response;
     try {
       response = await this.client.chat.completions.create({
-        model: DEFAULT_MODEL,
+        model: SCRIPT_MODEL,
         messages: [
           { role: "system", content: SYSTEM_PROMPT_SCRIPT },
           { role: "user", content: JSON.stringify(input) },
@@ -277,7 +278,7 @@ export class OpenAIRecommendationProvider implements RecommendationProvider {
     let response;
     try {
       response = await this.client.chat.completions.create({
-        model: DEFAULT_MODEL,
+        model: RECOMMENDATION_MODEL,
         messages: [
           { role: "system", content: SYSTEM_PROMPT_RECOMMENDATION },
           { role: "user", content: JSON.stringify(input.profile) },
