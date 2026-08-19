@@ -67,9 +67,12 @@ export const ShortsSceneSchema = z.object({
   duration: z.number().int().min(1),
   narration: z.string(),
   caption: z.string(),
-  visual_description: z.string(),
-  image_prompt: z.string(),
-  required_asset: z.string().default(""),
+  // "내 자료로 만들기"(user_upload) 씬은 실제 사진이 이미 배정되어 있어 이미지
+  // 생성용 필드가 무의미하므로, 모델이 null/누락으로 응답하는 경우가 있다.
+  // 방어적으로 null을 허용하고 빈 문자열로 정규화한다.
+  visual_description: z.string().nullable().optional().transform((v) => v ?? ""),
+  image_prompt: z.string().nullable().optional().transform((v) => v ?? ""),
+  required_asset: z.string().nullable().optional().transform((v) => v ?? ""),
   asset_source: AssetSourceSchema,
   motion: SceneMotionSchema,
   transition: SceneTransitionSchema,

@@ -73,7 +73,7 @@ export async function POST(
     const updatedScenes = [];
     const failures: Array<{ sceneId: string; sceneNumber: number; stage: string; message: string }> = [];
 
-    const isMusicOnly = project.narration_mode === "music_only";
+    const isNarrationDisabled = project.narration_mode === "none";
 
     // Process scenes in parallel or sequential
     for (const scene of targetScenes) {
@@ -95,8 +95,8 @@ export async function POST(
               })
             ).imageUrl;
 
-        // B. Generate Voice Narration Audio using TTS (narration_mode='music_only'면 스킵)
-        const audioUrl = isMusicOnly
+        // B. Generate Voice Narration Audio using TTS (narration_mode='none'면 스킵)
+        const audioUrl = isNarrationDisabled
           ? null
           : (
               await ttsProvider.generateAudio({

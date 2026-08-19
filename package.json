@@ -16,6 +16,7 @@
     "@google-cloud/run": "^3.3.0",
     "@google-cloud/storage": "^7.21.0",
     "@remotion/cli": "^4.0.505",
+    "@remotion/google-fonts": "^4.0.505",
     "@remotion/renderer": "^4.0.505",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.111.0",

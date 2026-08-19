@@ -84,22 +84,6 @@ async function main() {
 
   await updateProgress(15);
 
-  let bgmUrl = null;
-  if (project.narration_mode === "music_only" && project.bgm_track_id) {
-    const { data: bgmTrack } = await supabaseAdmin
-      .from("bgm_tracks")
-      .select("storage_path")
-      .eq("id", project.bgm_track_id)
-      .maybeSingle();
-
-    if (bgmTrack?.storage_path) {
-      const { data: publicUrlData } = supabaseAdmin.storage.from("bgm-tracks").getPublicUrl(bgmTrack.storage_path);
-      bgmUrl = publicUrlData.publicUrl;
-    } else {
-      log(`WARNING: bgm_track_id=${project.bgm_track_id} 를 찾을 수 없어 배경음악 없이 렌더링합니다.`);
-    }
-  }
-
   const objectName = `${projectId}_${Date.now()}.mp4`;
   const outputLocation = path.join(os.tmpdir(), objectName);
 
@@ -107,8 +91,8 @@ async function main() {
     title: project.title || "뚝딱쇼츠 동영상",
     scenes: project.scenes,
     outputLocation,
-    narrationMode: project.narration_mode || "ai_voice",
-    bgmUrl,
+    includeBgm: !!project.include_bgm,
+    bgmUrl: project.bgm_url || null,
     onProgress: (p) => {
       updateProgress(40 + Math.round(p * 50)).catch(() => {});
     },

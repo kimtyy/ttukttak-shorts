@@ -16,7 +16,7 @@ export async function renderProject({
   outputLocation,
   fps = 30,
   onProgress,
-  narrationMode = "ai_voice",
+  includeBgm = false,
   bgmUrl = null,
 }) {
   if (!fs.existsSync(ENTRY_POINT)) {
@@ -35,7 +35,7 @@ export async function renderProject({
   const composition = await selectComposition({
     serveUrl: bundleLocation,
     id: "ShortsVideo",
-    inputProps: { title, scenes: sortedScenes, fps, narrationMode, bgmUrl },
+    inputProps: { title, scenes: sortedScenes, fps, includeBgm, bgmUrl },
   });
 
   composition.durationInFrames = durationInFrames;

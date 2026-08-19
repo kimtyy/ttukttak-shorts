@@ -42,12 +42,13 @@ export default async function ProjectEditorPage({
     content_strategy: project.content_strategy,
     version: project.version,
     narration_mode: project.narration_mode,
-    bgm_track_id: project.bgm_track_id,
+    include_bgm: project.include_bgm,
+    bgm_url: project.bgm_url,
   };
 
   const scenes: ShortsScene[] = (project.scenes || [])
     .slice()
     .sort((a: ShortsScene, b: ShortsScene) => a.scene_number - b.scene_number);
 
-  return <SceneEditor project={projectHeader} scenes={scenes} />;
+  return <SceneEditor project={projectHeader} scenes={scenes} userId={user.id} />;
 }

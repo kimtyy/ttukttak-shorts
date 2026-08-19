@@ -98,7 +98,7 @@ describe("SceneEditor 자동저장 버전 동기화 (2026-08-04 SAVE_CONFLICT �
     const server = createMockServer(1);
     vi.stubGlobal("fetch", server.handler);
 
-    render(<SceneEditor project={baseProject} scenes={baseScenes} />);
+    render(<SceneEditor project={baseProject} scenes={baseScenes} userId="user_test_1" />);
 
     expect(screen.getByText("버전: 1")).toBeTruthy();
 
