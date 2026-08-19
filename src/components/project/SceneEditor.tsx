@@ -131,26 +131,28 @@ function SortableSceneCard({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-3 rounded-lg border border-slate-100">
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">화면 연출 설명</label>
-              <input
-                type="text"
-                value={scene.visual_description}
-                onChange={(e) => onUpdate(scene.id, "visual_description", e.target.value)}
-                className="w-full text-xs rounded border border-slate-300 p-2"
-              />
+          {scene.asset_source !== "user_upload" && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-3 rounded-lg border border-slate-100">
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">화면 연출 설명</label>
+                <input
+                  type="text"
+                  value={scene.visual_description}
+                  onChange={(e) => onUpdate(scene.id, "visual_description", e.target.value)}
+                  className="w-full text-xs rounded border border-slate-300 p-2"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-600 mb-1">이미지 생성 프롬프트 (영어)</label>
+                <input
+                  type="text"
+                  value={scene.image_prompt}
+                  onChange={(e) => onUpdate(scene.id, "image_prompt", e.target.value)}
+                  className="w-full text-xs rounded border border-slate-300 p-2 font-mono text-slate-700"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">이미지 생성 프롬프트 (영어)</label>
-              <input
-                type="text"
-                value={scene.image_prompt}
-                onChange={(e) => onUpdate(scene.id, "image_prompt", e.target.value)}
-                className="w-full text-xs rounded border border-slate-300 p-2 font-mono text-slate-700"
-              />
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Right Col: 9:16 Imagen Media Preview Card */}
@@ -262,6 +264,11 @@ export function SceneEditor({
   const targetDuration = projectHeader.duration || 30;
   const currentTotalDuration = scenes.reduce((acc, s) => acc + (s.duration || 0), 0);
   const isDurationMatched = currentTotalDuration === targetDuration;
+
+  // "내 자료로 만들기"로 만든 프로젝트: 모든 씬이 사용자가 올린 사진을 쓴다 -
+  // 비주얼 생성은 불필요/위험(사진을 AI 이미지로 덮어쓸 수 있음)하므로 UI를 다르게 보여준다.
+  const isUserUploadProject = scenes.length > 0 && scenes.every((s) => s.asset_source === "user_upload");
+  const isMusicOnly = projectHeader.narration_mode === "music_only";
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -527,24 +534,30 @@ export function SceneEditor({
           </div>
 
           {/* AI Media Generation Button */}
-          <button
-            type="button"
-            onClick={() => handleGenerateMedia()}
-            disabled={isGeneratingMedia}
-            className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-md transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-          >
-            {isGeneratingMedia ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Imagen 3 미디어 생성 중...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4" />
-                ✨ AI 비주얼 & 음성 생성
-              </>
-            )}
-          </button>
+          {isUserUploadProject && isMusicOnly ? (
+            <div className="text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-2.5 rounded-xl">
+              내 사진 + 배경음악만 사용됩니다 — 추가 생성이 필요 없어요
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleGenerateMedia()}
+              disabled={isGeneratingMedia}
+              className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-md transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+            >
+              {isGeneratingMedia ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  {isUserUploadProject ? "나레이션 생성 중..." : "Imagen 3 미디어 생성 중..."}
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  {isUserUploadProject ? "🎙 AI 나레이션 생성" : "✨ AI 비주얼 & 음성 생성"}
+                </>
+              )}
+            </button>
+          )}
 
           {/* Remotion MP4 Server Render Button */}
           <button

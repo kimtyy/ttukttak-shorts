@@ -50,6 +50,25 @@ export function DashboardView({
 
       {/* Main Action Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Link href="/my-assets" className="group">
+          <div className="h-full bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-emerald-500 transition-all flex flex-col justify-between">
+            <div className="space-y-3">
+              <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
+                <FolderOpen className="w-6 h-6" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">
+                내 자료로 만들기
+              </h2>
+              <p className="text-slate-600 text-sm leading-relaxed">
+                보유한 매장/제품 사진 3~10장을 올리면 AI가 사진을 분석해 순서와 대본, 콘티를 자동으로 구성합니다.
+              </p>
+            </div>
+            <div className="mt-6 flex items-center text-sm font-semibold text-emerald-600">
+              사진으로 만들러 가기 &rarr;
+            </div>
+          </div>
+        </Link>
+
         <Link href="/create" className="group">
           <div className="h-full bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-500 transition-all flex flex-col justify-between">
             <div className="space-y-3">
@@ -84,25 +103,6 @@ export function DashboardView({
             </div>
             <div className="mt-6 flex items-center text-sm font-semibold text-indigo-600">
               주제 추천받기 &rarr;
-            </div>
-          </div>
-        </Link>
-
-        <Link href="/my-assets" className="group">
-          <div className="h-full bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-emerald-500 transition-all flex flex-col justify-between">
-            <div className="space-y-3">
-              <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
-                <FolderOpen className="w-6 h-6" />
-              </div>
-              <h2 className="text-xl font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">
-                내 자료로 만들기
-              </h2>
-              <p className="text-slate-600 text-sm leading-relaxed">
-                보유한 매장/제품 사진 3~10장을 올리면 AI가 사진을 분석해 순서와 대본, 콘티를 자동으로 구성합니다.
-              </p>
-            </div>
-            <div className="mt-6 flex items-center text-sm font-semibold text-emerald-600">
-              사진으로 만들러 가기 &rarr;
             </div>
           </div>
         </Link>
