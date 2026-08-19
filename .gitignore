@@ -50,3 +50,5 @@ public/*.mp4
 
 # PWA icon generator script (local utility only)
 scripts/generate_icons.py
+scripts/generate_test_scripts.ts
+scripts/generated_test_results.json

@@ -88,25 +88,24 @@ export function DashboardView({
           </div>
         </Link>
 
-        <div className="opacity-60 bg-slate-50 rounded-2xl p-6 border border-slate-200 cursor-not-allowed flex flex-col justify-between relative">
-          <span className="absolute top-4 right-4 bg-slate-200 text-slate-600 text-xs px-2 py-0.5 rounded font-medium">
-            준비 중
-          </span>
-          <div className="space-y-3">
-            <div className="w-12 h-12 bg-slate-200 rounded-xl flex items-center justify-center text-slate-500">
-              <FolderOpen className="w-6 h-6" />
+        <Link href="/my-assets" className="group">
+          <div className="h-full bg-white rounded-2xl p-6 border border-slate-200 shadow-sm hover:shadow-md hover:border-emerald-500 transition-all flex flex-col justify-between">
+            <div className="space-y-3">
+              <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 group-hover:scale-110 transition-transform">
+                <FolderOpen className="w-6 h-6" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-900 group-hover:text-emerald-600 transition-colors">
+                내 자료로 만들기
+              </h2>
+              <p className="text-slate-600 text-sm leading-relaxed">
+                보유한 매장/제품 사진 3~10장을 올리면 AI가 사진을 분석해 순서와 대본, 콘티를 자동으로 구성합니다.
+              </p>
             </div>
-            <h2 className="text-xl font-bold text-slate-800">
-              내 자료로 만들기
-            </h2>
-            <p className="text-slate-500 text-sm leading-relaxed">
-              보유한 사진, 영상, 앱 캡처 화면을 올리면 AI가 자료를 분석해 영상을 자동 구성합니다 (2단계 제공).
-            </p>
+            <div className="mt-6 flex items-center text-sm font-semibold text-emerald-600">
+              사진으로 만들러 가기 &rarr;
+            </div>
           </div>
-          <div className="mt-6 text-sm font-semibold text-slate-400">
-            2단계 오픈 예정
-          </div>
-        </div>
+        </Link>
       </div>
 
       {/* Preset Categories */}

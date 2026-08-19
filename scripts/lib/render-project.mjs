@@ -10,7 +10,15 @@ const ENTRY_POINT = path.resolve("./src/remotion/Root.tsx");
  * Duration is derived from the sum of scene.duration (not the Root.tsx default),
  * matching what Series.Sequence in ShortsVideo.tsx actually plays.
  */
-export async function renderProject({ title, scenes, outputLocation, fps = 30, onProgress }) {
+export async function renderProject({
+  title,
+  scenes,
+  outputLocation,
+  fps = 30,
+  onProgress,
+  narrationMode = "ai_voice",
+  bgmUrl = null,
+}) {
   if (!fs.existsSync(ENTRY_POINT)) {
     throw new Error(`Remotion entry point not found: ${ENTRY_POINT}`);
   }
@@ -27,7 +35,7 @@ export async function renderProject({ title, scenes, outputLocation, fps = 30, o
   const composition = await selectComposition({
     serveUrl: bundleLocation,
     id: "ShortsVideo",
-    inputProps: { title, scenes: sortedScenes, fps },
+    inputProps: { title, scenes: sortedScenes, fps, narrationMode, bgmUrl },
   });
 
   composition.durationInFrames = durationInFrames;

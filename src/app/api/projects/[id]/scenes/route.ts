@@ -25,6 +25,8 @@ export async function PATCH(
       total_narration,
       content_strategy,
       scenes,
+      narration_mode,
+      bgm_track_id,
     } = body;
 
     if (version === undefined || !scenes || !Array.isArray(scenes)) {
@@ -42,6 +44,8 @@ export async function PATCH(
       p_total_narration: total_narration,
       p_content_strategy: content_strategy,
       p_scenes: scenes,
+      p_narration_mode: narration_mode ?? null,
+      p_bgm_track_id: bgm_track_id ?? null,
     });
 
     if (error) {

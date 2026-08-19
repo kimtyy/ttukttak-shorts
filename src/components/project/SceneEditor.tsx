@@ -162,14 +162,29 @@ function SortableSceneCard({
                 alt={`Scene ${index + 1} Visual`}
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
               />
-              <div className="absolute top-2 left-2 bg-purple-600/90 text-[10px] font-bold px-2 py-0.5 rounded text-white flex items-center gap-1 backdrop-blur-sm">
-                <Sparkles className="w-3 h-3" /> Imagen 3
+              <div
+                className={`absolute top-2 left-2 text-[10px] font-bold px-2 py-0.5 rounded text-white flex items-center gap-1 backdrop-blur-sm ${
+                  scene.asset_source === "user_upload" ? "bg-emerald-600/90" : "bg-purple-600/90"
+                }`}
+              >
+                {scene.asset_source === "user_upload" ? (
+                  "내 사진"
+                ) : (
+                  <>
+                    <Sparkles className="w-3 h-3" /> Imagen 3
+                  </>
+                )}
               </div>
               {scene.audio_url && (
                 <div className="absolute bottom-2 right-2 bg-black/70 text-emerald-400 text-[10px] font-bold p-1 rounded-full backdrop-blur-sm">
                   <Volume2 className="w-3.5 h-3.5" />
                 </div>
               )}
+            </div>
+          ) : scene.asset_source === "user_upload" ? (
+            <div className="w-full aspect-[9/16] rounded-lg border-2 border-dashed border-slate-700 flex flex-col items-center justify-center p-3 text-center bg-slate-950/50">
+              <ImageIcon className="w-8 h-8 text-slate-600 mb-2" />
+              <span className="text-xs text-slate-400 font-medium">연결된 사진이 없습니다</span>
             </div>
           ) : (
             <div className="w-full aspect-[9/16] rounded-lg border-2 border-dashed border-slate-700 flex flex-col items-center justify-center p-3 text-center bg-slate-950/50">
@@ -201,6 +216,15 @@ export interface ProjectHeaderData {
   total_narration?: string;
   content_strategy?: string;
   version: number;
+  narration_mode?: "ai_voice" | "music_only";
+  bgm_track_id?: string | null;
+}
+
+interface BgmTrack {
+  id: string;
+  title: string;
+  storage_path: string;
+  duration_seconds: number | null;
 }
 
 export function SceneEditor({
@@ -220,6 +244,14 @@ export function SceneEditor({
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error" | "conflict">("saved");
   const [isGeneratingMedia, setIsGeneratingMedia] = useState(false);
   const [isPlayerOpen, setIsPlayerOpen] = useState(false);
+  const [bgmTracks, setBgmTracks] = useState<BgmTrack[]>([]);
+
+  useEffect(() => {
+    fetch("/api/bgm-tracks")
+      .then((res) => res.json())
+      .then((data) => setBgmTracks(data.tracks || []))
+      .catch(() => {});
+  }, []);
 
   // Render Pipeline States
   const [renderStatus, setRenderStatus] = useState<"idle" | "queued" | "processing" | "completed" | "failed">("idle");
@@ -252,6 +284,8 @@ export function SceneEditor({
             hashtags: latestHeader.hashtags,
             total_narration: latestHeader.total_narration,
             content_strategy: latestHeader.content_strategy,
+            narration_mode: latestHeader.narration_mode,
+            bgm_track_id: latestHeader.bgm_track_id,
             scenes: latestScenes.map((s, idx) => ({
               ...s,
               scene_number: idx + 1,
@@ -621,6 +655,62 @@ export function SceneEditor({
             />
           </div>
         </div>
+      </div>
+
+      {/* Narration Mode Selection */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-3">
+        <h3 className="text-sm font-bold text-slate-800">나레이션 방식</h3>
+        <div className="flex flex-col md:flex-row gap-3">
+          <label
+            className={`flex-1 flex items-center gap-2 border rounded-xl p-3 cursor-pointer transition-colors ${
+              (projectHeader.narration_mode || "ai_voice") === "ai_voice"
+                ? "border-blue-500 bg-blue-50"
+                : "border-slate-200"
+            }`}
+          >
+            <input
+              type="radio"
+              name="narration_mode"
+              checked={(projectHeader.narration_mode || "ai_voice") === "ai_voice"}
+              onChange={() => setProjectHeader({ ...projectHeader, narration_mode: "ai_voice" })}
+            />
+            <span className="text-xs font-semibold text-slate-700">AI 음성 나레이션</span>
+          </label>
+          <label
+            className={`flex-1 flex items-center gap-2 border rounded-xl p-3 cursor-pointer transition-colors ${
+              projectHeader.narration_mode === "music_only" ? "border-blue-500 bg-blue-50" : "border-slate-200"
+            }`}
+          >
+            <input
+              type="radio"
+              name="narration_mode"
+              checked={projectHeader.narration_mode === "music_only"}
+              onChange={() => setProjectHeader({ ...projectHeader, narration_mode: "music_only" })}
+            />
+            <span className="text-xs font-semibold text-slate-700">배경음악만 사용 (나레이션 없음)</span>
+          </label>
+        </div>
+
+        {projectHeader.narration_mode === "music_only" && (
+          <div className="space-y-1 pt-1">
+            <label className="block text-[11px] font-semibold text-slate-600">배경음악 선택</label>
+            <select
+              value={projectHeader.bgm_track_id || ""}
+              onChange={(e) => setProjectHeader({ ...projectHeader, bgm_track_id: e.target.value || null })}
+              className="w-full text-xs rounded-lg border border-slate-300 p-2"
+            >
+              <option value="">배경음악을 선택하세요</option>
+              {bgmTracks.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.title}
+                </option>
+              ))}
+            </select>
+            {bgmTracks.length === 0 && (
+              <p className="text-[11px] text-amber-600">등록된 배경음악이 없습니다. 관리자에게 문의하세요.</p>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Scenes List with DND */}

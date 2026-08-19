@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClientForServer } from "@/lib/supabase/server";
 import { OpenAIScriptProvider } from "@/lib/ai/providers/openai";
+import { fillUnusedUploadedImages } from "@/lib/ai/repair-unused-images";
 import { GenerateScriptInput } from "@/types";
 
 export async function POST(request: Request) {
@@ -110,13 +111,25 @@ export async function POST(request: Request) {
       );
     }
 
+    // 3-1. "내 자료로 만들기": AI가 일부 업로드 사진을 씬에 배정하지 않고 넘어가는
+    // 경우가 있어(짧은 목표 길이에 사진이 많을 때), 누락된 사진마다 짧은 필러
+    // 씬을 추가해 업로드한 사진이 전부 최소 한 번은 영상에 등장하도록 보정한다.
+    if (input.images && input.images.length > 0) {
+      generatedScript.scenes = fillUnusedUploadedImages(
+        generatedScript.scenes,
+        input.images.length,
+        input.duration,
+        input.brand_name
+      );
+    }
+
     // 4. Create Project in DB
     const { data: project, error: projError } = await supabase
       .from("projects")
       .insert({
         user_id: user.id,
         title: generatedScript.title,
-        topic: input.topic || "",
+        topic: input.topic || input.brand_name || "보유 자료 기반 콘텐츠",
         purpose: input.purpose || "free",
         duration: input.duration || 30,
         visual_style: input.visual_style || "cinematic",
@@ -164,20 +177,37 @@ export async function POST(request: Request) {
     }
 
     // 6. Create Scenes in DB
-    const sceneInserts = generatedScript.scenes.map((s, idx) => ({
-      project_id: project.id,
-      scene_number: idx + 1,
-      role: s.role,
-      duration: s.duration,
-      narration: s.narration,
-      caption: s.caption,
-      visual_description: s.visual_description,
-      image_prompt: s.image_prompt,
-      required_asset: s.required_asset || "",
-      asset_source: s.asset_source,
-      motion: s.motion,
-      transition: s.transition,
-    }));
+    // "내 자료로 만들기": 업로드된 사진이 있으면 AI가 지정한 source_image_index로
+    // 실제 원본 사진 URL을 씬에 매핑한다. asset_source/media_status는 AI 응답을
+    // 신뢰하지 않고 서버에서 강제한다.
+    const uploadedImages = input.images;
+    const sceneInserts = generatedScript.scenes.map((s, idx) => {
+      const matchedImage =
+        uploadedImages &&
+        typeof s.source_image_index === "number" &&
+        s.source_image_index >= 0 &&
+        s.source_image_index < uploadedImages.length
+          ? uploadedImages[s.source_image_index]
+          : null;
+
+      return {
+        project_id: project.id,
+        scene_number: idx + 1,
+        role: s.role,
+        duration: s.duration,
+        narration: s.narration,
+        caption: s.caption,
+        visual_description: s.visual_description,
+        image_prompt: s.image_prompt,
+        required_asset: s.required_asset || "",
+        asset_source: matchedImage ? ("user_upload" as const) : s.asset_source,
+        motion: s.motion,
+        transition: s.transition,
+        ...(matchedImage
+          ? { image_url: matchedImage, media_status: "completed" }
+          : {}),
+      };
+    });
 
     const { error: scenesError } = await supabase.from("scenes").insert(sceneInserts);
 

@@ -21,7 +21,10 @@ const SYSTEM_PROMPT_SCRIPT = `
 특정 분야에 한정되지 않는다.
 점포 홍보, 상품 소개, 앱 소개, 이벤트, 정보, 이야기, 교육, 후기, 여행, 공지, 모집 등 사용자의 목적을 분석해 가장 적절한 영상 구조를 선택한다.
 사용자가 입력한 내용을 우선한다.
-사용자가 제공하지 않은 가격, 주소, 전화번호, 영업시간, 할인율, 효능, 수치, 통계, 출시일을 임의로 만들지 않는다.
+사용자가 제공하지 않은 가격, 주소, 전화번호, 영업시간, 할인율, 효능, 수치, 통계, 출시일, 역사적 사실을 절대 임의로 만들어내지 않는다.
+이미지가 함께 제공된 경우, 사진에서 시각적으로 명확히 확인되지 않는 정보(가격표 숫자, 원산지, 수상 이력, 정확한 연혁 등)는 언급하지 않는다.
+사용자가 지역명/지명을 입력하지 않았다면, 사진 속 배경만 보고 특정 지역명(예: "강원도", "부산", 특정 동네 이름)을 단정해서 언급하지 않는다. 일반적인 표현("아늑한 공간", "자연 속에서")으로 대체한다.
+확실하지 않은 사실은 구체적인 수치·단정 대신 일반적인 감각적 묘사(예: "정성 가득한", "푸짐한")로 표현한다.
 첫 3초 안에 관심을 끄는 장면이나 문장을 만든다.
 "안녕하세요", "오늘은", "이번 영상에서는"으로 시작하지 않는다.
 자막은 내레이션 전체를 복사하지 않고 핵심만 압축한다.
@@ -29,6 +32,15 @@ const SYSTEM_PROMPT_SCRIPT = `
 이미지 프롬프트에는 vertical 9:16 composition과 no text를 포함한다.
 이미지 프롬프트에 사람이 등장하는 경우, 인종/국적이 별도로 명시되지 않는 한 기본적으로 한국인 외모(Korean appearance/ethnicity)로 묘사한다. (예: "a Korean woman in her 30s", "a Korean man")
 모든 장면 duration의 합은 선택한 전체 영상 길이와 일치해야 한다.
+
+사용자가 이미지를 함께 제공한 경우("내 자료로 만들기" 플로우), 다음을 반드시 지킨다:
+1. 각 이미지를 장면 종류(외부 전경/내부/메뉴·상품/인물/분위기 등)로 분류한다.
+2. 가장 자연스러운 이야기 순서(hook → ... → cta)로 재배열한다.
+3. 제공된 이미지는 빠짐없이 전부 사용한다 - scenes 배열의 개수는 제공된 이미지 개수와 정확히 같아야 한다 (이미지 5장이면 scene도 정확히 5개).
+4. 모든 scene은 "source_image_index"(0부터 시작하는, 사용자가 제공한 원본 이미지 배열의 인덱스)에 null이 아닌 유효한 값을 가져야 하며, 각 이미지는 정확히 하나의 scene에만 중복 없이 배정한다.
+5. 이 경우 각 scene의 asset_source는 반드시 "user_upload"로 설정한다.
+6. 이미지 개수가 많아 한 장면의 duration이 짧아지더라도(예: 2~3초) 이미지를 생략하지 말고 전체 duration을 이미지 개수만큼 나눠 배분한다.
+이미지가 제공되지 않은 일반 플로우에서는 source_image_index를 null로 둔다.
 
 다른 설명, 코드블록 없이 아래 형식의 JSON 객체 하나만 출력한다:
 {
@@ -55,7 +67,8 @@ const SYSTEM_PROMPT_SCRIPT = `
       "required_asset": string,
       "asset_source": "user_upload" | "ai_image" | "ai_video" | "screen_recording" | "stock" | "text_motion",
       "motion": "slow_zoom_in" | "slow_zoom_out" | "pan_left" | "pan_right" | "pan_up" | "pan_down" | "static" | "screen_scroll" | "text_pop",
-      "transition": "fade" | "cross_dissolve" | "slide_left" | "slide_right" | "cut"
+      "transition": "fade" | "cross_dissolve" | "slide_left" | "slide_right" | "cut",
+      "source_image_index": number | null
     }
   ]
 }
@@ -130,13 +143,23 @@ export class OpenAIScriptProvider implements ScriptProvider {
       return this.getMockScript(input);
     }
 
+    const { images, ...inputWithoutImages } = input;
+    const hasImages = Array.isArray(images) && images.length > 0;
+
+    const userContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] | string = hasImages
+      ? [
+          { type: "text", text: JSON.stringify(inputWithoutImages) },
+          ...images!.map((url) => ({ type: "image_url" as const, image_url: { url } })),
+        ]
+      : JSON.stringify(input);
+
     let response;
     try {
       response = await this.client.chat.completions.create({
         model: SCRIPT_MODEL,
         messages: [
           { role: "system", content: SYSTEM_PROMPT_SCRIPT },
-          { role: "user", content: JSON.stringify(input) },
+          { role: "user", content: userContent },
         ],
         response_format: { type: "json_object" },
       });

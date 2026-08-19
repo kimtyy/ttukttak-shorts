@@ -1,14 +1,29 @@
 import React from "react";
-import { Series, Html5Audio, Img } from "remotion";
+import { Series, Html5Audio, Img, interpolate } from "remotion";
 import { ShortsScene } from "@/types";
 
 export type ShortsVideoProps = {
   title: string;
   scenes: ShortsScene[];
   fps?: number;
+  narrationMode?: "ai_voice" | "music_only";
+  bgmUrl?: string | null;
 };
 
-export const ShortsVideo: React.FC<ShortsVideoProps> = ({ title, scenes, fps = 30 }) => {
+const BGM_FADE_SECONDS = 1.5;
+
+export const ShortsVideo: React.FC<ShortsVideoProps> = ({
+  title,
+  scenes,
+  fps = 30,
+  narrationMode = "ai_voice",
+  bgmUrl = null,
+}) => {
+  const totalDurationInFrames = (scenes || []).reduce(
+    (acc, s) => acc + Math.max(1, (s.duration || 5) * fps),
+    0
+  );
+
   return (
     <div
       style={{
@@ -20,6 +35,24 @@ export const ShortsVideo: React.FC<ShortsVideoProps> = ({ title, scenes, fps = 3
         fontFamily: "'Inter', sans-serif",
       }}
     >
+      {narrationMode === "music_only" && bgmUrl && (
+        <Html5Audio
+          src={bgmUrl}
+          loop
+          volume={(frame) => {
+            const fadeFrames = Math.round(BGM_FADE_SECONDS * fps);
+            const fadeIn = interpolate(frame, [0, fadeFrames], [0, 1], { extrapolateRight: "clamp" });
+            const fadeOut = interpolate(
+              frame,
+              [totalDurationInFrames - fadeFrames, totalDurationInFrames],
+              [1, 0],
+              { extrapolateLeft: "clamp" }
+            );
+            return Math.min(fadeIn, fadeOut);
+          }}
+        />
+      )}
+
       <Series>
         {(scenes || []).map((scene, idx) => {
           const durationInFrames = Math.max(1, (scene.duration || 5) * fps);

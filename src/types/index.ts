@@ -241,6 +241,8 @@ export interface ShortsScene {
   audio_url?: string | null;
   video_url?: string | null;
   media_status?: "pending" | "generating" | "completed" | "failed";
+  // AI vision 생성 시에만 채워짐: 이 씬이 사용한 업로드 이미지의 0부터 시작하는 인덱스
+  source_image_index?: number | null;
 }
 
 export interface GeneratedShortsProject {
@@ -277,7 +279,7 @@ export interface TopicRecommendation {
 }
 
 export interface GenerateScriptInput {
-  topic: string;
+  topic?: string;
   purpose: VideoPurpose;
   duration: 15 | 30 | 45 | 60;
   visual_style?: VisualStyle;
@@ -300,6 +302,8 @@ export interface GenerateScriptInput {
   app_summary?: string;
   solving_problem?: string;
   core_features?: string;
+  // "내 자료로 만들기": 업로드된 사진 공개 URL 목록. 있으면 vision 기반 생성으로 분기된다.
+  images?: string[];
 }
 
 export interface RecommendationInput {

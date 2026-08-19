@@ -73,33 +73,47 @@ export async function POST(
     const updatedScenes = [];
     const failures: Array<{ sceneId: string; sceneNumber: number; stage: string; message: string }> = [];
 
+    const isMusicOnly = project.narration_mode === "music_only";
+
     // Process scenes in parallel or sequential
     for (const scene of targetScenes) {
       try {
-        // A. Generate 9:16 Vertical Image using Google Imagen 3
-        const imageResult = await imagenProvider.generateImage({
-          prompt: scene.image_prompt || scene.visual_description,
-          visualStyle: project.visual_style,
-          mood: project.mood,
-          aspectRatio: "9:16",
-          requestId,
-        });
+        // "내 자료로 만들기" 씬은 이미 사용자가 올린 실제 사진을 가리키고 있으므로
+        // AI 이미지로 덮어쓰지 않는다.
+        const isUserUpload = scene.asset_source === "user_upload" && !!scene.image_url;
 
-        // B. Generate Voice Narration Audio using TTS
-        const audioResult = await ttsProvider.generateAudio({
-          text: scene.narration || scene.caption,
-          voiceStyle: project.voice_style,
-          requestId,
-        });
+        // A. Generate 9:16 Vertical Image using Google Imagen 3 (user_upload 씬은 스킵)
+        const imageUrl = isUserUpload
+          ? scene.image_url
+          : (
+              await imagenProvider.generateImage({
+                prompt: scene.image_prompt || scene.visual_description,
+                visualStyle: project.visual_style,
+                mood: project.mood,
+                aspectRatio: "9:16",
+                requestId,
+              })
+            ).imageUrl;
+
+        // B. Generate Voice Narration Audio using TTS (narration_mode='music_only'면 스킵)
+        const audioUrl = isMusicOnly
+          ? null
+          : (
+              await ttsProvider.generateAudio({
+                text: scene.narration || scene.caption,
+                voiceStyle: project.voice_style,
+                requestId,
+              })
+            ).audioUrl;
 
         // C. Update DB Scene Record
         const { data: updatedScene, error: updateErr } = await supabase
           .from("scenes")
           .update({
-            image_url: imageResult.imageUrl,
-            audio_url: audioResult.audioUrl,
+            image_url: imageUrl,
+            audio_url: audioUrl,
             media_status: "completed",
-            asset_source: "ai_image",
+            asset_source: isUserUpload ? "user_upload" : "ai_image",
             updated_at: new Date().toISOString(),
           })
           .eq("id", scene.id)

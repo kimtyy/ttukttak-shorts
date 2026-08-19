@@ -41,6 +41,8 @@ export default async function ProjectEditorPage({
     total_narration: project.total_narration,
     content_strategy: project.content_strategy,
     version: project.version,
+    narration_mode: project.narration_mode,
+    bgm_track_id: project.bgm_track_id,
   };
 
   const scenes: ShortsScene[] = (project.scenes || [])

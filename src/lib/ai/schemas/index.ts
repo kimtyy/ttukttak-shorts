@@ -73,6 +73,8 @@ export const ShortsSceneSchema = z.object({
   asset_source: AssetSourceSchema,
   motion: SceneMotionSchema,
   transition: SceneTransitionSchema,
+  // "내 자료로 만들기": 이미지 기반 생성일 때만 채워짐 (0부터 시작하는 업로드 이미지 인덱스)
+  source_image_index: z.number().int().min(0).nullable().optional(),
 });
 
 export const GeneratedShortsProjectSchema = z.object({
