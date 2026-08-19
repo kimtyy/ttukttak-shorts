@@ -27,6 +27,8 @@ export default async function DashboardPage() {
         planName: usage.planName,
         scriptRemaining: usage.scriptRemaining,
         scriptLimit: usage.scriptLimit,
+        renderRemaining: usage.renderRemaining,
+        renderLimit: usage.renderLimit,
       }}
       recentProjects={recentProjects || []}
     />

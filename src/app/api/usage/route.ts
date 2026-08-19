@@ -23,12 +23,15 @@ export async function GET() {
     if (!sub || !sub.plan) {
       return NextResponse.json({
         planName: "Free Standard",
-        scriptLimit: 5,
+        scriptLimit: 30,
         scriptUsed: 0,
-        scriptRemaining: 5,
+        scriptRemaining: 30,
         recommendationLimit: 10,
         recommendationUsed: 0,
         recommendationRemaining: 10,
+        renderLimit: 3,
+        renderUsed: 0,
+        renderRemaining: 3,
       });
     }
 
@@ -60,6 +63,19 @@ export async function GET() {
 
     const recUsed = (recLedger || []).reduce((acc, curr) => acc + curr.quantity, 0);
 
+    // Calculate Render Debits (Committed + Pending) in Period
+    const { data: renderLedger } = await supabase
+      .from("usage_ledger")
+      .select("quantity")
+      .eq("user_id", user.id)
+      .eq("action", "video_render")
+      .eq("direction", "debit")
+      .in("status", ["committed", "pending"])
+      .gte("period_start", sub.current_period_start)
+      .lte("period_end", sub.current_period_end);
+
+    const renderUsed = (renderLedger || []).reduce((acc, curr) => acc + curr.quantity, 0);
+
     return NextResponse.json({
       planCode: plan.code,
       planName: plan.name,
@@ -71,6 +87,9 @@ export async function GET() {
       recommendationLimit: plan.monthly_recommendation_limit,
       recommendationUsed: recUsed,
       recommendationRemaining: Math.max(0, plan.monthly_recommendation_limit - recUsed),
+      renderLimit: plan.monthly_render_limit,
+      renderUsed,
+      renderRemaining: Math.max(0, plan.monthly_render_limit - renderUsed),
     });
   } catch (err: unknown) {
     const error = err as Error;

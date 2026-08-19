@@ -13,6 +13,9 @@ export interface UsageSummary {
   recommendationLimit: number;
   recommendationUsed: number;
   recommendationRemaining: number;
+  renderLimit: number;
+  renderUsed: number;
+  renderRemaining: number;
 }
 
 const FREE_DEFAULTS: UsageSummary = {
@@ -20,12 +23,15 @@ const FREE_DEFAULTS: UsageSummary = {
   planName: "Free Standard",
   periodStart: null,
   periodEnd: null,
-  scriptLimit: 5,
+  scriptLimit: 30,
   scriptUsed: 0,
-  scriptRemaining: 5,
+  scriptRemaining: 30,
   recommendationLimit: 10,
   recommendationUsed: 0,
   recommendationRemaining: 10,
+  renderLimit: 3,
+  renderUsed: 0,
+  renderRemaining: 3,
 };
 
 export async function getUsageSummary(
@@ -77,6 +83,21 @@ export async function getUsageSummary(
     0
   );
 
+  const { data: renderLedger } = await supabase
+    .from("usage_ledger")
+    .select("quantity")
+    .eq("user_id", userId)
+    .eq("action", "video_render")
+    .eq("direction", "debit")
+    .in("status", ["committed", "pending"])
+    .gte("period_start", sub.current_period_start)
+    .lte("period_end", sub.current_period_end);
+
+  const renderUsed = (renderLedger || []).reduce(
+    (acc: number, curr: { quantity: number }) => acc + curr.quantity,
+    0
+  );
+
   return {
     planCode: plan.code,
     planName: plan.name,
@@ -88,5 +109,8 @@ export async function getUsageSummary(
     recommendationLimit: plan.monthly_recommendation_limit,
     recommendationUsed: recUsed,
     recommendationRemaining: Math.max(0, plan.monthly_recommendation_limit - recUsed),
+    renderLimit: plan.monthly_render_limit,
+    renderUsed,
+    renderRemaining: Math.max(0, plan.monthly_render_limit - renderUsed),
   };
 }

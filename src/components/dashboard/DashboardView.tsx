@@ -8,6 +8,8 @@ export interface UsageData {
   planName?: string;
   scriptRemaining?: number;
   scriptLimit?: number;
+  renderRemaining?: number;
+  renderLimit?: number;
 }
 
 export interface ProjectHeader {
@@ -24,8 +26,10 @@ export function DashboardView({
   usage?: UsageData;
   recentProjects?: ProjectHeader[];
 }) {
-  const scriptRemaining = usage?.scriptRemaining ?? 5;
-  const scriptLimit = usage?.scriptLimit ?? 5;
+  const scriptRemaining = usage?.scriptRemaining ?? 30;
+  const scriptLimit = usage?.scriptLimit ?? 30;
+  const renderRemaining = usage?.renderRemaining ?? 3;
+  const renderLimit = usage?.renderLimit ?? 3;
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
@@ -41,9 +45,15 @@ export function DashboardView({
               AI가 장면 기획부터 대본 작성까지 몇 초 만에 완료해드립니다.
             </p>
           </div>
-          <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20 text-center min-w-[160px]">
-            <span className="text-xs text-blue-200 block">이번 달 남은 대본 생성</span>
-            <span className="text-2xl font-black text-white">{scriptRemaining} / {scriptLimit} 회</span>
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20 text-center sm:min-w-[160px]">
+              <span className="text-xs text-blue-200 block">이번 달 남은 대본 생성</span>
+              <span className="text-2xl font-black text-white">{scriptRemaining} / {scriptLimit} 회</span>
+            </div>
+            <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20 text-center sm:min-w-[160px]">
+              <span className="text-xs text-blue-200 block">이번 달 남은 렌더링</span>
+              <span className="text-2xl font-black text-white">{renderRemaining} / {renderLimit} 회</span>
+            </div>
           </div>
         </div>
       </div>
