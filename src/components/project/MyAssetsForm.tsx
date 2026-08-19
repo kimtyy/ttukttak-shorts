@@ -235,7 +235,7 @@ export function MyAssetsForm({ scriptRemaining }: { scriptRemaining: number }) {
               value={brandName}
               onChange={(e) => setBrandName(e.target.value)}
               placeholder="예: 정성갈비"
-              className="w-full text-sm rounded-lg border border-slate-300 p-2.5"
+              className="w-full text-sm rounded-lg border border-slate-300 p-2.5 text-slate-800"
             />
           </div>
           <div className="space-y-1">
@@ -245,7 +245,7 @@ export function MyAssetsForm({ scriptRemaining }: { scriptRemaining: number }) {
               value={callToAction}
               onChange={(e) => setCallToAction(e.target.value)}
               placeholder="예: 지금 방문하고 할인받으세요"
-              className="w-full text-sm rounded-lg border border-slate-300 p-2.5"
+              className="w-full text-sm rounded-lg border border-slate-300 p-2.5 text-slate-800"
             />
           </div>
           <div className="md:col-span-2 space-y-1">
@@ -255,7 +255,7 @@ export function MyAssetsForm({ scriptRemaining }: { scriptRemaining: number }) {
               value={keyMessage}
               onChange={(e) => setKeyMessage(e.target.value)}
               placeholder="예: 24시간 숙성 양념, 가족 단위 손님 환영"
-              className="w-full text-sm rounded-lg border border-slate-300 p-2.5"
+              className="w-full text-sm rounded-lg border border-slate-300 p-2.5 text-slate-800"
             />
           </div>
         </div>
