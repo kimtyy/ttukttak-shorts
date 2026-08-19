@@ -495,13 +495,13 @@ export function SceneEditor({
 
       {/* Top Controls Bar */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <div className="flex items-center gap-2">
+        <div className="w-full md:w-auto">
+          <div className="flex flex-wrap items-center gap-2">
             <input
               type="text"
               value={projectHeader.title}
               onChange={(e) => setProjectHeader({ ...projectHeader, title: e.target.value })}
-              className="text-2xl font-black text-slate-900 border-b border-transparent hover:border-slate-300 focus:border-blue-600 focus:outline-none"
+              className="text-2xl font-black text-slate-900 border-b border-transparent hover:border-slate-300 focus:border-blue-600 focus:outline-none w-full sm:w-auto min-w-0"
             />
             <span className="text-xs bg-slate-100 text-slate-600 font-bold px-2.5 py-1 rounded-md">
               {targetDuration}초 프로젝트
@@ -510,7 +510,7 @@ export function SceneEditor({
           <p className="text-xs text-slate-500 mt-1">버전: {version}</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           <div className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border">
             {saveState === "saving" && (
               <span className="text-amber-600 flex items-center gap-1">
