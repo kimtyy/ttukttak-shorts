@@ -610,7 +610,7 @@ export function SceneEditor({
               type="text"
               value={projectHeader.title}
               onChange={(e) => setProjectHeader({ ...projectHeader, title: e.target.value })}
-              className="text-2xl font-black text-slate-900 border-b border-transparent hover:border-slate-300 focus:border-blue-600 focus:outline-none w-full sm:w-auto min-w-0"
+              className="text-2xl font-black text-slate-900 border-b border-transparent hover:border-slate-300 focus:border-blue-600 focus:outline-none w-full min-w-0 truncate"
             />
             <span className="text-xs bg-slate-100 text-slate-600 font-bold px-2.5 py-1 rounded-md">
               {targetDuration}초 프로젝트
