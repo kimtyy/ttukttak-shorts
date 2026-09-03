@@ -13,7 +13,7 @@ import {
 import OpenAI from "openai";
 import { ZodError } from "zod";
 
-const SCRIPT_MODEL = process.env.OPENAI_MODEL || "gpt-4o";
+const SCRIPT_MODEL = process.env.OPENAI_MODEL || "gpt-5.6-sol";
 const RECOMMENDATION_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
 const SYSTEM_PROMPT_SCRIPT = `
