@@ -52,6 +52,9 @@ export type Mood =
   | "hopeful"
   | "serious";
 
+// "concise": 담백한 카피체 (짧고 직설적) / "narrative": 감성적 스토리텔링 (은유·묘사 허용)
+export type CopyTone = "concise" | "narrative";
+
 export type SceneRole =
   | "hook"
   | "problem"
@@ -285,6 +288,7 @@ export interface GenerateScriptInput {
   visual_style?: VisualStyle;
   voice_style?: VoiceStyle;
   mood?: Mood;
+  copy_tone?: CopyTone;
   brand_name?: string;
   key_message?: string;
   target_audience?: string;

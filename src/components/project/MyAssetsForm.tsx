@@ -4,21 +4,12 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClientForBrowser } from "@/lib/supabase/client";
 import { UploadCloud, X, ImagePlus, FolderOpen } from "lucide-react";
-import { VisualStyle, VoiceStyle, Mood } from "@/types";
+import { VoiceStyle, CopyTone } from "@/types";
 
 const MIN_PHOTOS = 3;
 const MAX_PHOTOS = 10;
 const MAX_LONG_EDGE = 1600;
 const JPEG_QUALITY = 0.85;
-
-const VISUAL_STYLE_OPTIONS: { value: VisualStyle; label: string }[] = [
-  { value: "cinematic", label: "영화적 실사 (기본값)" },
-  { value: "documentary", label: "다큐멘터리" },
-  { value: "animation_3d", label: "3D 애니메이션" },
-  { value: "webtoon", label: "웹툰" },
-  { value: "watercolor", label: "수채화" },
-  { value: "warm_photo", label: "따뜻한 감성 사진" },
-];
 
 const VOICE_STYLE_OPTIONS: { value: VoiceStyle; label: string }[] = [
   { value: "calm_middle_aged_male", label: "차분한 중년 남성 (기본값)" },
@@ -28,13 +19,9 @@ const VOICE_STYLE_OPTIONS: { value: VoiceStyle; label: string }[] = [
   { value: "documentary_narrator", label: "다큐멘터리 내레이터" },
 ];
 
-const MOOD_OPTIONS: { value: Mood; label: string }[] = [
-  { value: "emotional", label: "감동적 (기본값)" },
-  { value: "calm", label: "차분함" },
-  { value: "cheerful", label: "유쾌함" },
-  { value: "tense", label: "긴장감" },
-  { value: "hopeful", label: "희망적" },
-  { value: "serious", label: "진지함" },
+const COPY_TONE_OPTIONS: { value: CopyTone; label: string }[] = [
+  { value: "concise", label: "담백한 카피체 (기본값)" },
+  { value: "narrative", label: "감성적 스토리텔링" },
 ];
 
 interface PendingPhoto {
@@ -73,9 +60,8 @@ export function MyAssetsForm({ scriptRemaining }: { scriptRemaining: number }) {
   const [keyMessage, setKeyMessage] = useState("");
   const [callToAction, setCallToAction] = useState("");
   const [duration, setDuration] = useState<15 | 30 | 45 | 60>(30);
-  const [visualStyle, setVisualStyle] = useState<VisualStyle>("cinematic");
   const [voiceStyle, setVoiceStyle] = useState<VoiceStyle>("calm_middle_aged_male");
-  const [mood, setMood] = useState<Mood>("emotional");
+  const [copyTone, setCopyTone] = useState<CopyTone>("concise");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [progressLabel, setProgressLabel] = useState("");
@@ -150,9 +136,8 @@ export function MyAssetsForm({ scriptRemaining }: { scriptRemaining: number }) {
           idempotencyKey,
           purpose: "business_promotion",
           duration,
-          visual_style: visualStyle,
           voice_style: voiceStyle,
-          mood,
+          copy_tone: copyTone,
           images: imageUrls,
           brand_name: brandName,
           key_message: keyMessage,
@@ -259,23 +244,8 @@ export function MyAssetsForm({ scriptRemaining }: { scriptRemaining: number }) {
           </div>
         </div>
 
-        {/* Visual Style, Voice Style, Mood Selection */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-bold text-slate-800 mb-2">화면 스타일</label>
-            <select
-              value={visualStyle}
-              onChange={(e) => setVisualStyle(e.target.value as VisualStyle)}
-              className="w-full rounded-xl border border-slate-300 p-3 text-slate-800 text-sm font-medium focus:ring-2 focus:ring-blue-500"
-            >
-              {VISUAL_STYLE_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
+        {/* Voice Style & Copy Tone Selection */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md">
           <div>
             <label className="block text-sm font-bold text-slate-800 mb-2">목소리 스타일</label>
             <select
@@ -292,13 +262,13 @@ export function MyAssetsForm({ scriptRemaining }: { scriptRemaining: number }) {
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-slate-800 mb-2">영상 분위기</label>
+            <label className="block text-sm font-bold text-slate-800 mb-2">문체 스타일</label>
             <select
-              value={mood}
-              onChange={(e) => setMood(e.target.value as Mood)}
+              value={copyTone}
+              onChange={(e) => setCopyTone(e.target.value as CopyTone)}
               className="w-full rounded-xl border border-slate-300 p-3 text-slate-800 text-sm font-medium focus:ring-2 focus:ring-blue-500"
             >
-              {MOOD_OPTIONS.map((opt) => (
+              {COPY_TONE_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>

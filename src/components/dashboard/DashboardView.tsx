@@ -86,7 +86,7 @@ export function DashboardView({
                 <PlusCircle className="w-6 h-6" />
               </div>
               <h2 className="text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
-                직접 만들기
+                내 아이디어로 만들기
               </h2>
               <p className="text-slate-600 text-sm leading-relaxed">
                 만들고 싶은 내용, 점포/앱/상품 정보를 자유롭게 입력하여 맞춤형 대본을 생성합니다.
@@ -105,7 +105,7 @@ export function DashboardView({
                 <Sparkles className="w-6 h-6" />
               </div>
               <h2 className="text-xl font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
-                AI 추천받기
+                AI로 주제 추천받기
               </h2>
               <p className="text-slate-600 text-sm leading-relaxed">
                 내 업종과 관심 분야, 타겟 시청자에 맞는 흥미로운 콘텐츠 아이디어 10개를 추천받습니다.

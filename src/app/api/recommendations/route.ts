@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       });
 
       const userMsg = reserveError.message.includes("USAGE_LIMIT_EXCEEDED")
-        ? "이번 달 AI 추천 사용량 한도를 모두 소진하였습니다."
+        ? "이번 달 AI로 주제 추천받기 사용량 한도를 모두 소진하였습니다."
         : reserveError.message.includes("NO_ACTIVE_SUBSCRIPTION")
         ? "활성화된 요금제가 없습니다. 무료 요금제를 발급하는 중입니다."
         : "추천을 생성하지 못했습니다. 잠시 후 다시 시도해주세요.";

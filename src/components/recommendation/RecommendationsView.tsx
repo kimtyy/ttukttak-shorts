@@ -61,7 +61,7 @@ export function RecommendationsView({
           <div>
             <h1 className="text-2xl font-black text-slate-900 flex items-center gap-2">
               <Sparkles className="w-6 h-6 text-indigo-600" />
-              AI 주제 추천
+              AI로 주제 추천받기
             </h1>
             <p className="text-slate-500 text-sm mt-1">
               내 업종, 관심 분야 및 시청자 특성을 반영하여 가장 성과가 좋을 아이디어 10개를 추천해 드립니다.

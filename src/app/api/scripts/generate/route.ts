@@ -135,6 +135,7 @@ export async function POST(request: Request) {
         visual_style: input.visual_style || "cinematic",
         voice_style: input.voice_style || "calm_middle_aged_male",
         mood: input.mood || "emotional",
+        copy_tone: input.copy_tone || "concise",
         hook: generatedScript.hook,
         thumbnail_text: generatedScript.thumbnail_text,
         description: generatedScript.description,

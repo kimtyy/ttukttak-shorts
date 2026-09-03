@@ -3,6 +3,7 @@ import {
   GenerateScriptInput,
   RecommendationInput,
   TopicRecommendation,
+  CopyTone,
 } from "@/types";
 import { ScriptProvider, RecommendationProvider } from "./provider";
 import {
@@ -90,6 +91,23 @@ function buildImageInstructionBlock(count: number): string {
 `;
 }
 
+const CONCISE_COPY_TONE_INSTRUCTION = `
+나레이션과 캡션은 반드시 간결하고 직설적인 광고 카피체로 작성한다. 비유나 은유(예: "~처럼", "~같은")를 남발하지 않는다. 한 문장은 15자 내외로 짧게 끊어 쓰고, 시청자가 1초 안에 이해할 수 있는 쉬운 표현만 쓴다. 문학적이거나 감상적인 수사는 피하고, 짧은 숏폼 영상에 맞는 임팩트 있는 문장을 우선한다.
+`;
+
+const NARRATIVE_COPY_TONE_INSTRUCTION = `
+나레이션과 캡션에 감성적인 묘사와 비유(예: "~처럼", "~같은")를 자유롭게 써도 좋다. 장면의 분위기와 이야기를 살려 시청자의 감정을 움직이는 문장을 만든다. 다만 TTS로 읽었을 때 한 문장이 지나치게 길어지지 않도록, 한 문장에 비유나 수식어를 두 개 이상 겹쳐 쓰지 않고 적정 길이(대략 2~4초 분량)를 유지한다.
+`;
+
+/**
+ * copy_tone("concise" | "narrative")에 따라 나레이션/캡션 문체 지침을 고른다.
+ * 기본값은 concise(담백한 카피체) - 광고/홍보 목적의 숏폼에는 대체로 이쪽이
+ * 더 적합하고, narrative는 사용자가 명시적으로 선택했을 때만 적용한다.
+ */
+function buildCopyToneInstruction(copyTone?: CopyTone): string {
+  return copyTone === "narrative" ? NARRATIVE_COPY_TONE_INSTRUCTION : CONCISE_COPY_TONE_INSTRUCTION;
+}
+
 const SYSTEM_PROMPT_RECOMMENDATION = `
 당신은 다양한 일반 사용자, 크리에이터, 소상공인, 앱 개발자를 위한 쇼츠·릴스 콘텐츠 전략가다.
 사용자 프로필과 요청 내용을 바탕으로 실제로 제작할 수 있는 주제 10개를 추천한다.
@@ -162,9 +180,10 @@ export class OpenAIScriptProvider implements ScriptProvider {
     const { images, ...inputWithoutImages } = input;
     const hasImages = Array.isArray(images) && images.length > 0;
 
-    const systemPrompt = hasImages
-      ? SYSTEM_PROMPT_SCRIPT + buildImageInstructionBlock(images!.length)
-      : SYSTEM_PROMPT_SCRIPT;
+    const systemPrompt =
+      SYSTEM_PROMPT_SCRIPT +
+      buildCopyToneInstruction(input.copy_tone) +
+      (hasImages ? buildImageInstructionBlock(images!.length) : "");
 
     const userContent: OpenAI.Chat.Completions.ChatCompletionContentPart[] | string = hasImages
       ? [

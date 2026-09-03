@@ -9,8 +9,8 @@ import type { User } from "@supabase/supabase-js";
 
 const NAV_LINKS = [
   { href: "/dashboard", label: "대시보드", icon: LayoutDashboard, hoverColor: "hover:text-blue-600", iconColor: "text-slate-500" },
-  { href: "/create", label: "직접 만들기", icon: Video, hoverColor: "hover:text-blue-600", iconColor: "text-slate-500" },
-  { href: "/recommendations", label: "AI 추천", icon: Sparkles, hoverColor: "hover:text-indigo-600", iconColor: "text-indigo-500" },
+  { href: "/create", label: "내 아이디어로 만들기", icon: Video, hoverColor: "hover:text-blue-600", iconColor: "text-slate-500" },
+  { href: "/recommendations", label: "AI로 주제 추천받기", icon: Sparkles, hoverColor: "hover:text-indigo-600", iconColor: "text-indigo-500" },
 ];
 
 export function NavigationHeader() {

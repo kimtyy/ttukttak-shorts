@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { VideoPurpose, LaunchStatus, VisualStyle, VoiceStyle, Mood } from "@/types";
+import { VideoPurpose, LaunchStatus, VisualStyle, VoiceStyle, Mood, CopyTone } from "@/types";
 
 const VISUAL_STYLE_OPTIONS: { value: VisualStyle; label: string }[] = [
   { value: "cinematic", label: "영화적 실사 (기본값)" },
@@ -29,6 +29,11 @@ const MOOD_OPTIONS: { value: Mood; label: string }[] = [
   { value: "hopeful", label: "희망적" },
   { value: "serious", label: "진지함" },
 ];
+
+const COPY_TONE_OPTIONS: { value: CopyTone; label: string }[] = [
+  { value: "concise", label: "담백한 카피체 (기본값)" },
+  { value: "narrative", label: "감성적 스토리텔링" },
+];
 import { Sparkles, Store, AppWindow } from "lucide-react";
 
 export function CreateScriptForm({ scriptRemaining }: { scriptRemaining: number }) {
@@ -48,6 +53,7 @@ export function CreateScriptForm({ scriptRemaining }: { scriptRemaining: number 
   const [visualStyle, setVisualStyle] = useState<VisualStyle>("cinematic");
   const [voiceStyle, setVoiceStyle] = useState<VoiceStyle>("calm_middle_aged_male");
   const [mood, setMood] = useState<Mood>("emotional");
+  const [copyTone, setCopyTone] = useState<CopyTone>("concise");
   const [showAdvanced, setShowAdvanced] = useState(false);
 
   // App Dedicated Fields
@@ -95,6 +101,7 @@ export function CreateScriptForm({ scriptRemaining }: { scriptRemaining: number 
           visual_style: visualStyle,
           voice_style: voiceStyle,
           mood,
+          copy_tone: copyTone,
           launch_status: purpose === "app_service" ? launchStatus : undefined,
           app_name: appName,
           solving_problem: solvingProblem,
@@ -202,8 +209,8 @@ export function CreateScriptForm({ scriptRemaining }: { scriptRemaining: number 
             </div>
           </div>
 
-          {/* Visual Style, Voice Style, Mood Selection */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Visual Style, Voice Style, Mood, Copy Tone Selection */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-bold text-slate-800 mb-2">화면 스타일</label>
               <select
@@ -242,6 +249,21 @@ export function CreateScriptForm({ scriptRemaining }: { scriptRemaining: number 
                 className="w-full rounded-xl border border-slate-300 p-3 text-slate-800 text-sm font-medium focus:ring-2 focus:ring-blue-500"
               >
                 {MOOD_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-slate-800 mb-2">문체 스타일</label>
+              <select
+                value={copyTone}
+                onChange={(e) => setCopyTone(e.target.value as CopyTone)}
+                className="w-full rounded-xl border border-slate-300 p-3 text-slate-800 text-sm font-medium focus:ring-2 focus:ring-blue-500"
+              >
+                {COPY_TONE_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
                   </option>
