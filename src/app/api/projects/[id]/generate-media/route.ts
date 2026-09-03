@@ -96,15 +96,22 @@ export async function POST(
             ).imageUrl;
 
         // B. Generate Voice Narration Audio using TTS (narration_mode='none'면 스킵)
-        const audioUrl = isNarrationDisabled
+        const audioResult = isNarrationDisabled
           ? null
-          : (
-              await ttsProvider.generateAudio({
-                text: scene.narration || scene.caption,
-                voiceStyle: project.voice_style,
-                requestId,
-              })
-            ).audioUrl;
+          : await ttsProvider.generateAudio({
+              text: scene.narration || scene.caption,
+              voiceStyle: project.voice_style,
+              requestId,
+            });
+        const audioUrl = audioResult?.audioUrl ?? null;
+
+        // B-1. 실제 오디오 길이가 씬 duration보다 길면, 렌더링 시 잘리지 않도록
+        // duration을 오디오 길이보다 약간 여유 있게(+0.3초) 늘려 잡는다.
+        const measuredDuration = audioResult?.durationSec ?? null;
+        const finalDuration =
+          measuredDuration !== null && measuredDuration > scene.duration
+            ? Math.ceil(measuredDuration + 0.3)
+            : scene.duration;
 
         // C. Update DB Scene Record
         const { data: updatedScene, error: updateErr } = await supabase
@@ -112,6 +119,7 @@ export async function POST(
           .update({
             image_url: imageUrl,
             audio_url: audioUrl,
+            duration: finalDuration,
             media_status: "completed",
             asset_source: isUserUpload ? "user_upload" : "ai_image",
             updated_at: new Date().toISOString(),

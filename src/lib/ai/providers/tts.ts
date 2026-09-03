@@ -4,6 +4,7 @@
  */
 
 import OpenAI from "openai";
+import { parseBuffer } from "music-metadata";
 
 export interface GenerateAudioOptions {
   text: string;
@@ -15,6 +16,7 @@ export interface AudioGenerationResult {
   audioUrl: string; // base64 data URL or HTTP URL
   provider: "openai-tts" | "browser-synthesis";
   mimeType: string;
+  durationSec: number | null; // 실제 재생 길이(초). 측정 불가한 경우(브라우저 폴백, 파싱 실패) null
 }
 
 export class TextToSpeechProvider {
@@ -53,10 +55,21 @@ export class TextToSpeechProvider {
         const buffer = Buffer.from(arrayBuffer);
         const base64Audio = buffer.toString("base64");
 
+        let durationSec: number | null = null;
+        try {
+          const metadata = await parseBuffer(buffer, { mimeType: "audio/mpeg" });
+          durationSec = metadata.format.duration ?? null;
+        } catch (measureErr: unknown) {
+          console.warn(
+            `[${requestId || "TTS"}] Failed to measure audio duration: ${measureErr instanceof Error ? measureErr.message : String(measureErr)}.`
+          );
+        }
+
         return {
           audioUrl: `data:audio/mp3;base64,${base64Audio}`,
           provider: "openai-tts",
           mimeType: "audio/mp3",
+          durationSec,
         };
       } catch (err: unknown) {
         console.warn(
@@ -70,6 +83,7 @@ export class TextToSpeechProvider {
       audioUrl: `speech://${encodeURIComponent(cleanText)}`,
       provider: "browser-synthesis",
       mimeType: "audio/wav",
+      durationSec: null,
     };
   }
 

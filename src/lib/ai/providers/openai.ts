@@ -36,6 +36,7 @@ title, hook, thumbnail_text, description, total_narration, content_strategy, tar
 이미지 프롬프트에는 vertical 9:16 composition과 no text를 포함한다.
 이미지 프롬프트에 사람이 등장하는 경우, 인종/국적이 별도로 명시되지 않는 한 기본적으로 한국인 외모(Korean appearance/ethnicity)로 묘사한다. (예: "a Korean woman in her 30s", "a Korean man")
 모든 장면 duration의 합은 선택한 전체 영상 길이와 일치해야 한다.
+각 장면의 narration은 반드시 그 장면의 duration(초)에 맞는 분량으로 작성한다. 한국어 TTS 발화 속도는 초당 약 4~5자 기준이므로, narration 글자수(공백 포함)는 duration × 4자를 넘지 않도록 한다. (예: duration=3초 → narration은 12자 이내, duration=5초 → 20자 이내) 이 글자수 상한은 뒤에 나오는 copy_tone 문체 지침보다 우선한다 - 톤을 살리기 위해 이 상한을 넘기지 않는다. 단, 이 상한을 지키는 범위 내에서는 copy_tone의 문체를 따른다.
 이미지가 제공되지 않은 경우 source_image_index를 null로 둔다.
 
 다른 설명, 코드블록 없이 아래 형식의 JSON 객체 하나만 출력한다:

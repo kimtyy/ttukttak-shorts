@@ -314,6 +314,9 @@ export function SceneEditor({
   const [isUploadingBgm, setIsUploadingBgm] = useState(false);
   const [bgmUploadError, setBgmUploadError] = useState("");
 
+  // 나레이션 음성 길이에 맞춰 씬 duration이 자동 조정된 적이 있는지(현재 세션 한정) - 경고 배너 문구 보강용
+  const [durationAutoAdjusted, setDurationAutoAdjusted] = useState(false);
+
   // Render Pipeline States
   const [renderStatus, setRenderStatus] = useState<"idle" | "queued" | "processing" | "completed" | "failed">("idle");
   const [renderProgress, setRenderProgress] = useState(0);
@@ -474,12 +477,19 @@ export function SceneEditor({
       }
 
       if (data.scenes && Array.isArray(data.scenes)) {
+        let anyDurationAdjusted = false;
         setScenes((prev) =>
           prev.map((s) => {
             const updated = data.scenes.find((sc: ShortsScene) => sc.id === s.id);
+            if (updated && updated.duration > s.duration) {
+              anyDurationAdjusted = true;
+            }
             return updated ? { ...s, ...updated } : s;
           })
         );
+        if (anyDurationAdjusted) {
+          setDurationAutoAdjusted(true);
+        }
       }
     } catch (err: unknown) {
       const error = err as Error;
@@ -749,6 +759,7 @@ export function SceneEditor({
             <span>
               장면 시간 합계(<strong>{currentTotalDuration}초</strong>)가 목표 영상 길이(
               <strong>{targetDuration}초</strong>)와 일치하지 않습니다. 각 장면의 시간을 조절해 주세요.
+              {durationAutoAdjusted && " (나레이션 음성 길이에 맞춰 자동 조정된 장면이 있습니다)"}
             </span>
           </div>
         </div>
